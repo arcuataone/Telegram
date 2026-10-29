@@ -186,6 +186,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
     private TextView titleView;
     private TextView subtitleView;
     private TextView versionView;
+    private TextView githubView;
     public boolean hasMainTabs;
 
     private View navigationBar;
@@ -479,6 +480,15 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         subtitleView.setEllipsize(TextUtils.TruncateAt.END);
         topView.addView(subtitleView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 0, 168 - 12, 0, 0));
 
+        githubView = new TextView(context);
+        githubView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+        githubView.setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteLinkText));
+        githubView.setPadding(dp(21), 0, dp(21), dp(16));
+        githubView.setGravity(Gravity.CENTER);
+        githubView.setText("GitHub · arcuataone/Telegram");
+        githubView.setBackground(Theme.createSelectorDrawable(getThemedColor(Theme.key_listSelector), Theme.RIPPLE_MASK_ALL));
+        githubView.setOnClickListener(v -> Browser.openUrl(getContext(), "https://github.com/arcuataone/Telegram"));
+
         versionView = new TextView(context);
         versionView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
         versionView.setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteGrayText4));
@@ -565,6 +575,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         actionBar.setTitleColor(getThemedColor(Theme.key_windowBackgroundWhiteBlackText));
         actionBar.setItemsColor(getThemedColor(Theme.key_windowBackgroundWhiteBlackText), false);
         contentView.setBackgroundColor(getThemedColor(Theme.key_windowBackgroundGray));
+        githubView.setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteLinkText));
         titleView.setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteBlackText));
         subtitleView.setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteGrayText));
         searchItem.updateColor();
@@ -779,6 +790,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         }
 
         items.add(UItem.asCustomShadow(versionView));
+        items.add(UItem.asCustomShadow(githubView));
     }
 
     private void presentSettingFragment(BaseFragment fragment) {
@@ -972,7 +984,9 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                     }
                     break;
             }
-            return formatString(R.string.TelegramVersion, String.format(Locale.US, "v%s (%d)\n%s", pInfo.versionName, code, abi));
+            int buildNumber = org.telegram.messenger.BuildConfig.QIQIGRAM_BUILD_NUMBER;
+            String forkVersion = String.format(Locale.US, "%d.%02d", buildNumber / 100, buildNumber % 100);
+            return "QiQiGram " + forkVersion + "\n" + formatString(R.string.TelegramVersion, String.format(Locale.US, "v%s (%d)\n%s", pInfo.versionName, code, abi));
         } catch (Exception e) {
             FileLog.e(e);
         }

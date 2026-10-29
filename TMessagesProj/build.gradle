@@ -135,6 +135,7 @@ android {
     }
 
     defaultConfig {
+        buildConfigField "int", "QIQIGRAM_BUILD_NUMBER", providers.gradleProperty("qiqigramBuildNumber").orElse("1").get()
         minSdkVersion 23
         targetSdkVersion 36
 
