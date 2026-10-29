@@ -179,6 +179,18 @@ public static VideoAds make(
         this.bulletinFactory = bulletinFactory;
         this.lastTime = System.currentTimeMillis();
         this.first = true;
+        if (BuildVars.DISABLE_SPONSORED_MESSAGES) {
+            ads.clear();
+            cache.ads.clear();
+            cache.startDelay = 0;
+            cache.betweenDelay = 0;
+            cache.loadTime = System.currentTimeMillis();
+            cache.loaded = true;
+            loading = false;
+            loaded = true;
+            AndroidUtilities.cancelRunOnUIThread(showRunnable);
+            return;
+        }
         if (cache.loaded) {
             start_delay = cache.startDelay;
             between_delay = cache.betweenDelay;
