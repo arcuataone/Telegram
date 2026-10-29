@@ -14,3 +14,9 @@ TMessagesProj_AppHockeyApp/afat/
 TMessagesProj_AppStandalone/afat/
 TMessagesProj_AppHuawei/afat/
 TMessagesProj/jni/ffmpeg/build_android
+
+# Local Mieru client configuration contains server credentials.
+**/mieru.json
+**/mieru.local.json
+**/mieru.config.json
+**/mieru_client_config.json

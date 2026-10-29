@@ -263,4 +263,9 @@
     <string name="RemindTodayAt">\'Отправить сегодня в\' HH:mm</string>
     <string name="RemindDayAt">\'Отправить\' d MMM \'в\' HH:mm</string>
     <string name="RemindDayYearAt">\'Напомнить\' d MMM yyyy \'в\' HH:mm</string>
+    <string name="Mieru">Mieru</string>
+    <string name="MieruPortRange">Диапазон портов сервера</string>
+    <string name="MieruProtocol">Протокол (TCP/UDP)</string>
+    <string name="MieruMultiplexing">Уровень мультиплексирования</string>
+    <string name="MieruProxyInfo">Параметры подключения к прокси Mieru.</string>
 </resources>

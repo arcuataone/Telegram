@@ -11630,4 +11630,9 @@
     <string name="NoPaidMessagesTokenUsed">un1 used your QR code and can message you for free</string>
     <string name="NoPaidMessagesTokenUsedOut">You used the QR code of un1 and can message them for free</string>
     <string name="NoPaidMessagesTokenImported">You can now message **%1$s** for free.</string>
+    <string name="Mieru">Mieru</string>
+    <string name="MieruPortRange">Server port range</string>
+    <string name="MieruProtocol">Protocol (TCP/UDP)</string>
+    <string name="MieruMultiplexing">Multiplexing level</string>
+    <string name="MieruProxyInfo">Mieru proxy connection settings.</string>
 </resources>

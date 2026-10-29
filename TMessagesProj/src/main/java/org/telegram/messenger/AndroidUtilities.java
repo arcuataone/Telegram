@@ -153,6 +153,7 @@ import com.google.android.gms.tasks.Task;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.utils.proxy.ProxySettings;
+import org.telegram.utils.proxy.MieruProxySettings;
 import org.telegram.messenger.utils.CustomHtml;
 import org.telegram.messenger.utils.DebugRecordingCanvas;
 import org.telegram.tgnet.ConnectionsManager;
@@ -4675,10 +4676,15 @@ public class AndroidUtilities {
         if (!TextUtils.isEmpty(address)) {
             tableView.addRow(getString(R.string.UseProxyAddress), address);
         }
-        if (port != 0) {
+        if (port != 0 && settings.getType() != ProxySettings.Type.MIERU) {
             tableView.addRow(getString(R.string.UseProxyPort), Integer.toString(port));
         }
-        if (!TextUtils.isEmpty(secret)) {
+        if (settings.getType() == ProxySettings.Type.MIERU) {
+            MieruProxySettings mieru = MieruProxySettings.fromProxySettings(settings);
+            tableView.addRow(getString(R.string.MieruPortRange), mieru.portRange);
+            tableView.addRow(getString(R.string.MieruProtocol), mieru.protocol);
+            tableView.addRow(getString(R.string.MieruMultiplexing), mieru.multiplexing);
+        } else if (!TextUtils.isEmpty(secret)) {
             tableView.addRow(getString(R.string.UseProxySecret), secret);
         }
         if (!TextUtils.isEmpty(user)) {
@@ -4735,7 +4741,11 @@ public class AndroidUtilities {
                     .show();
             }
         }));
-        if (!TextUtils.isEmpty(secret)) {
+        if (settings.getType() == ProxySettings.Type.MIERU) {
+            statusTextView[0].setText(getString(R.string.Mieru));
+            statusTextView[0].setOnClickListener(v -> { });
+        }
+        if (!TextUtils.isEmpty(secret) && settings.getType() != ProxySettings.Type.MIERU) {
             final TableView.TableRowFullContent tableRow = tableView.addFullRow(getString(R.string.UseProxyTelegramInfo2));
             tableRow.setFilled(true);
             final SpoilersTextView textView = (SpoilersTextView) tableRow.getChildAt(0);
@@ -4754,7 +4764,11 @@ public class AndroidUtilities {
             final SharedConfig.ProxyInfo info = new SharedConfig.ProxyInfo(settings);
             SharedConfig.currentProxy = SharedConfig.addProxy(info);
 
-            ConnectionsManager.setProxySettings(true, settings);
+            if (settings.getType() == ProxySettings.Type.MIERU) {
+                org.telegram.messenger.transport.MieruController.apply(activity, true, settings);
+            } else {
+                ConnectionsManager.setProxySettings(true, settings);
+            }
             NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.proxySettingsChanged);
             if (activity instanceof LaunchActivity) {
                 INavigationLayout layout = ((LaunchActivity) activity).getActionBarLayout();

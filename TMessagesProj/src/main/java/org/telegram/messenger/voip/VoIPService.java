@@ -3427,7 +3427,12 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 			final String persistentStateFilePath = new File(ApplicationLoader.applicationContext.getCacheDir(), "voip_persistent_state.json").getAbsolutePath();
 
 			// endpoints
-			final boolean forceTcp = preferences.getBoolean("dbg_force_tcp_in_calls", false);
+			final org.telegram.messenger.transport.ProxyTransport activeTransport = org.telegram.messenger.transport.TransportManager.getInstance().getActiveTransport();
+			final boolean useMieruForCalls = preferences.getBoolean("proxy_enabled_calls", false)
+					&& org.telegram.messenger.transport.MieruController.isEnabled()
+					&& activeTransport instanceof org.telegram.messenger.transport.MieruTransport
+					&& activeTransport.isRunning();
+			final boolean forceTcp = useMieruForCalls || preferences.getBoolean("dbg_force_tcp_in_calls", false);
 			final int endpointType = forceTcp ? Instance.ENDPOINT_TYPE_TCP_RELAY : Instance.ENDPOINT_TYPE_UDP_RELAY;
 			final Instance.Endpoint[] endpoints = new Instance.Endpoint[privateCall.connections.size()];
 			ArrayList<Long> reflectorIds = new ArrayList<>();
@@ -3469,8 +3474,14 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 					videoState[CAPTURE_DEVICE_CAMERA] = Instance.VIDEO_STATE_INACTIVE;
 				}
 			}
+			Instance.Proxy callProxy = null;
+			if (useMieruForCalls) {
+				org.telegram.messenger.transport.MieruTransport mieru = (org.telegram.messenger.transport.MieruTransport) activeTransport;
+				callProxy = new Instance.Proxy(mieru.getLocalAddress(), mieru.getLocalPort(), mieru.getSocksUsername(), mieru.getSocksPassword());
+			}
+
 			// init
-			tgVoip[CAPTURE_DEVICE_CAMERA] = Instance.makeInstance(privateCall.protocol.library_versions.get(0), config, persistentStateFilePath, endpoints, null, getNetworkType(), encryptionKey, remoteSink[CAPTURE_DEVICE_CAMERA], captureDevice[CAPTURE_DEVICE_CAMERA], (uids, levels, voice) -> {
+			tgVoip[CAPTURE_DEVICE_CAMERA] = Instance.makeInstance(privateCall.protocol.library_versions.get(0), config, persistentStateFilePath, endpoints, callProxy, getNetworkType(), encryptionKey, remoteSink[CAPTURE_DEVICE_CAMERA], captureDevice[CAPTURE_DEVICE_CAMERA], (uids, levels, voice) -> {
 				if (sharedInstance == null || privateCall == null) {
 					return;
 				}

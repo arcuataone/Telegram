@@ -324,6 +324,10 @@ public class ApplicationLoader extends Application {
         }
 
         NativeLoader.initNativeLibs(ApplicationLoader.applicationContext);
+        org.telegram.messenger.transport.MieruController.migrateLegacyProfile(applicationContext);
+        if (org.telegram.messenger.transport.MieruController.isEnabled()) {
+            org.telegram.messenger.transport.MieruController.start(applicationContext);
+        }
 
         try {
             ConnectionsManager.native_setJava(false);

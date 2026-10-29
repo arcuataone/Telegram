@@ -27,7 +27,8 @@ public final class ProxySettings {
     public enum Type {
         SOCKS5,
         MTPROTO,
-        WEB
+        WEB,
+        MIERU
     }
 
     private final @NonNull Type type;
@@ -51,8 +52,8 @@ public final class ProxySettings {
             port = builder.port;
             user = "";
             password = "";
-        } else if (type == Type.SOCKS5) {
-            secret = "";
+        } else if (type == Type.SOCKS5 || type == Type.MIERU) {
+            secret = type == Type.MIERU ? builder.secret : "";
             port = builder.port;
             user = builder.user;
             password = builder.password;
@@ -94,14 +95,30 @@ public final class ProxySettings {
         if (TextUtils.isEmpty(address)) {
             return false;
         }
-        return type == Type.WEB
-                ? isValidWebAddress(address) && isValidWebProxySecret(secret)
-                : port > 0;
+        if (type == Type.WEB) {
+            return isValidWebAddress(address) && isValidWebProxySecret(secret);
+        }
+        if (type == Type.MIERU) {
+            return MieruProxySettings.fromProxySettings(this).isValid();
+        }
+        return port > 0;
     }
 
     public String getLink() {
         StringBuilder url;
         switch (type) {
+            case MIERU:
+                MieruProxySettings mieru = MieruProxySettings.fromProxySettings(this);
+                try {
+                    return "qiqigram://mieru?server=" + URLEncoder.encode(address, "UTF-8")
+                            + "&ports=" + URLEncoder.encode(mieru.portRange, "UTF-8")
+                            + "&protocol=" + URLEncoder.encode(mieru.protocol, "UTF-8")
+                            + "&mux=" + URLEncoder.encode(mieru.multiplexing, "UTF-8")
+                            + "&user=" + URLEncoder.encode(user, "UTF-8")
+                            + "&pass=" + URLEncoder.encode(password, "UTF-8");
+                } catch (UnsupportedEncodingException ignored) {
+                    return "";
+                }
             case MTPROTO:
                 url = new StringBuilder("https://t.me/proxy?");
                 break;
@@ -212,6 +229,12 @@ public final class ProxySettings {
                 editor.remove("proxy_pass");
                 editor.remove("proxy_user");
                 break;
+            case MIERU:
+                editor.putInt("proxy_port", port);
+                editor.putString("proxy_secret", secret);
+                editor.putString("proxy_pass", password);
+                editor.putString("proxy_user", user);
+                break;
         }
     }
 
@@ -228,7 +251,22 @@ public final class ProxySettings {
 
             Type type;
 
-            if (scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https")) {
+            if (scheme.equalsIgnoreCase("qiqigram") && "mieru".equalsIgnoreCase(uri.getHost())) {
+                String address = uri.getQueryParameter("server");
+                MieruProxySettings mieru = new MieruProxySettings(address,
+                        uri.getQueryParameter("user"), uri.getQueryParameter("pass"),
+                        uri.getQueryParameter("ports"), uri.getQueryParameter("protocol"),
+                        uri.getQueryParameter("mux"));
+                ProxySettings settings = builder()
+                        .setType(Type.MIERU)
+                        .setAddress(mieru.address)
+                        .setPort(mieru.getStartPort())
+                        .setUser(mieru.username)
+                        .setPassword(mieru.password)
+                        .setSecret(mieru.toSecret())
+                        .build();
+                return settings.isValid() ? settings : null;
+            } else if (scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https")) {
                 String host = uri.getHost();
                 if (host == null) {
                     return null;
@@ -523,6 +561,8 @@ public final class ProxySettings {
                 return 1;
             case WEB:
                 return 2;
+            case MIERU:
+                return 3;
         }
         return 0;
     }
@@ -535,6 +575,8 @@ public final class ProxySettings {
                 return Type.MTPROTO;
             case 2:
                 return Type.WEB;
+            case 3:
+                return Type.MIERU;
         }
         return Type.SOCKS5;
     }

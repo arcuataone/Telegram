@@ -55,8 +55,10 @@ import org.telegram.messenger.SvgHelper;
 import org.telegram.messenger.Utilities;
 import org.telegram.utils.proxy.WebProxyTransport;
 import org.telegram.utils.proxy.ProxySettings;
+import org.telegram.utils.proxy.MieruProxySettings;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.ui.ActionBar.ActionBar;
+import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
@@ -84,6 +86,8 @@ public class ProxySettingsActivity extends BaseFragment {
     private final static int FIELD_USER = 2;
     private final static int FIELD_PASSWORD = 3;
     private final static int FIELD_SECRET = 4;
+    private final static int FIELD_MIERU_PROTOCOL = 5;
+    private final static int FIELD_MIERU_MULTIPLEXING = 6;
 
     private EditTextBoldCursor[] inputFields;
     private ScrollView scrollView;
@@ -95,7 +99,7 @@ public class ProxySettingsActivity extends BaseFragment {
     private TextSettingsCell shareCell;
     private TextSettingsCell pasteCell;
     private ActionBarMenuItem doneItem;
-    private RadioCell[] typeCell = new RadioCell[3];
+    private RadioCell[] typeCell = new RadioCell[4];
     private ProxySettings.Type currentType;
 
     private ProxySettings pasteProxySettings;
@@ -212,13 +216,23 @@ public class ProxySettingsActivity extends BaseFragment {
                         return;
                     }
 
+                    String address = inputFields[FIELD_IP].getText().toString();
+                    String portText = inputFields[FIELD_PORT].getText().toString();
+                    MieruProxySettings mieruSettings = currentType == ProxySettings.Type.MIERU
+                            ? new MieruProxySettings(address,
+                                    inputFields[FIELD_USER].getText().toString(),
+                                    inputFields[FIELD_PASSWORD].getText().toString(),
+                                    portText,
+                                    inputFields[FIELD_MIERU_PROTOCOL].getText().toString(),
+                                    inputFields[FIELD_MIERU_MULTIPLEXING].getText().toString())
+                            : null;
                     currentProxyInfo.settings = ProxySettings.builder()
                         .setType(currentType)
-                        .setAddress(inputFields[FIELD_IP].getText().toString())
-                        .setPort(currentType == ProxySettings.Type.WEB ? 0 : Utilities.parseInt(inputFields[FIELD_PORT].getText().toString()))
-                        .setUser(currentType == ProxySettings.Type.SOCKS5 ? inputFields[FIELD_USER].getText().toString() : "")
-                        .setPassword(currentType == ProxySettings.Type.SOCKS5 ? inputFields[FIELD_PASSWORD].getText().toString() : "")
-                        .setSecret(currentType != ProxySettings.Type.SOCKS5 ? inputFields[FIELD_SECRET].getText().toString() : "")
+                        .setAddress(address)
+                        .setPort(currentType == ProxySettings.Type.WEB ? 0 : currentType == ProxySettings.Type.MIERU ? mieruSettings.getStartPort() : Utilities.parseInt(portText))
+                        .setUser(currentType == ProxySettings.Type.SOCKS5 || currentType == ProxySettings.Type.MIERU ? inputFields[FIELD_USER].getText().toString() : "")
+                        .setPassword(currentType == ProxySettings.Type.SOCKS5 || currentType == ProxySettings.Type.MIERU ? inputFields[FIELD_PASSWORD].getText().toString() : "")
+                        .setSecret(currentType == ProxySettings.Type.MIERU ? mieruSettings.toSecret() : currentType != ProxySettings.Type.SOCKS5 ? inputFields[FIELD_SECRET].getText().toString() : "")
                         .build();
 
                     SharedPreferences preferences = MessagesController.getGlobalMainSettings();
@@ -235,7 +249,7 @@ public class ProxySettingsActivity extends BaseFragment {
                     }
                     if (addingNewProxy || SharedConfig.currentProxy == currentProxyInfo) {
                         currentProxyInfo.settings.toSharedPreferences(editor);
-                        ConnectionsManager.setProxySettings(enabled, currentProxyInfo.settings);
+                        org.telegram.messenger.transport.MieruController.apply(getParentActivity(), enabled, currentProxyInfo.settings);
                     }
                     editor.commit();
 
@@ -279,18 +293,20 @@ public class ProxySettingsActivity extends BaseFragment {
 
         final View.OnClickListener typeCellClickListener = view -> setProxyType(ProxySettings.intToType((Integer) view.getTag()), true);
 
-        for (int a = 0; a < 3; a++) {
+        for (int a = 0; a < typeCell.length; a++) {
             ProxySettings.Type t = ProxySettings.intToType(a);
 
             typeCell[a] = new RadioCell(context);
             typeCell[a].setBackground(Theme.getSelectorDrawable(true));
             typeCell[a].setTag(a);
-            if (a == 0) {
+            if (t == ProxySettings.Type.SOCKS5) {
                 typeCell[a].setText(LocaleController.getString(R.string.UseProxySocks5), t == currentType, true);
-            } else if (a == 1) {
+            } else if (t == ProxySettings.Type.MTPROTO) {
                 typeCell[a].setText(LocaleController.getString(R.string.UseProxyTelegram), t == currentType, true);
-            } else {
+            } else if (t == ProxySettings.Type.WEB) {
                 typeCell[a].setText(LocaleController.getString(R.string.UseProxyWeb), t == currentType, false);
+            } else {
+                typeCell[a].setText(LocaleController.getString(R.string.Mieru), t == currentType, false);
             }
             linearLayout2.addView(typeCell[a], LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 50));
             typeCell[a].setOnClickListener(typeCellClickListener);
@@ -309,8 +325,8 @@ public class ProxySettingsActivity extends BaseFragment {
         inputFieldsContainer.setOutlineProvider(null);
         linearLayout2.addView(inputFieldsContainer, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
-        inputFields = new EditTextBoldCursor[5];
-        for (int a = 0; a < 5; a++) {
+        inputFields = new EditTextBoldCursor[7];
+        for (int a = 0; a < inputFields.length; a++) {
             FrameLayout container = new FrameLayout(context);
             inputFieldsContainer.addView(container, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 64));
 
@@ -367,7 +383,9 @@ public class ProxySettingsActivity extends BaseFragment {
                         }
                         EditText phoneField = inputFields[FIELD_PORT];
                         int start = phoneField.getSelectionStart();
-                        String chars = "0123456789";
+                        boolean mieruPortRange = currentType == ProxySettings.Type.MIERU
+                                || currentProxyInfo.settings.getType() == ProxySettings.Type.MIERU;
+                        String chars = mieruPortRange ? "0123456789-" : "0123456789";
                         String str = phoneField.getText().toString();
                         StringBuilder builder = new StringBuilder(str.length());
                         for (int a = 0; a < str.length(); a++) {
@@ -378,8 +396,8 @@ public class ProxySettingsActivity extends BaseFragment {
                         }
                         ignoreOnTextChange = true;
                         boolean changed;
-                        int port = Utilities.parseInt(builder.toString());
-                        if (port < 0 || port > 65535 || !str.equals(builder.toString())) {
+                        int port = mieruPortRange ? 0 : Utilities.parseInt(builder.toString());
+                        if ((!mieruPortRange && (port < 0 || port > 65535)) || !str.equals(builder.toString())) {
                             if (port < 0) {
                                 phoneField.setText("0");
                             } else if (port > 65535) {
@@ -396,12 +414,49 @@ public class ProxySettingsActivity extends BaseFragment {
                         checkShareDone(true);
                     }
                 });
+            } else if (a == FIELD_MIERU_PROTOCOL) {
+                inputFields[a].setInputType(InputType.TYPE_NULL);
+                inputFields[a].setFocusable(false);
+                inputFields[a].setCursorVisible(false);
+                inputFields[a].setOnClickListener(v -> {
+                    String[] protocols = {"TCP", "UDP"};
+                    AlertDialog dialog = new AlertDialog.Builder(getParentActivity())
+                            .setTitle(LocaleController.getString(R.string.MieruProtocol))
+                            .setItems(protocols, (d, which) -> {
+                                inputFields[FIELD_MIERU_PROTOCOL].setText(protocols[which]);
+                                d.dismiss();
+                            })
+                            .create();
+                    showDialog(dialog);
+                });
+            } else if (a == FIELD_MIERU_MULTIPLEXING) {
+                inputFields[a].setInputType(InputType.TYPE_NULL);
+                inputFields[a].setFocusable(false);
+                inputFields[a].setCursorVisible(false);
+                inputFields[a].setOnClickListener(v -> {
+                    String[] levels = {"MULTIPLEXING_OFF", "MULTIPLEXING_LOW", "MULTIPLEXING_MIDDLE", "MULTIPLEXING_HIGH"};
+                    AlertDialog dialog = new AlertDialog.Builder(getParentActivity())
+                            .setTitle(LocaleController.getString(R.string.MieruMultiplexing))
+                            .setItems(levels, (d, which) -> {
+                                inputFields[FIELD_MIERU_MULTIPLEXING].setText(levels[which]);
+                                d.dismiss();
+                            })
+                            .create();
+                    showDialog(dialog);
+                });
             } else if (a == FIELD_PASSWORD) {
                 inputFields[a].setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
                 inputFields[a].setTypeface(Typeface.DEFAULT);
                 inputFields[a].setTransformationMethod(PasswordTransformationMethod.getInstance());
             } else {
                 inputFields[a].setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+            }
+            if (a == FIELD_USER || a == FIELD_PASSWORD || a == FIELD_MIERU_PROTOCOL || a == FIELD_MIERU_MULTIPLEXING) {
+                inputFields[a].addTextChangedListener(new TextWatcher() {
+                    @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+                    @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
+                    @Override public void afterTextChanged(Editable s) { checkShareDone(true); }
+                });
             }
             if (a == FIELD_SECRET) {
                 inputFields[a].addTextChangedListener(new TextWatcher() {
@@ -431,7 +486,11 @@ public class ProxySettingsActivity extends BaseFragment {
                     break;
                 case FIELD_PORT:
                     inputFields[a].setHintText(LocaleController.getString(R.string.UseProxyPort));
-                    inputFields[a].setText(Integer.toString(currentProxyInfo.settings.getPort()));
+                    if (currentProxyInfo.settings.getType() == ProxySettings.Type.MIERU) {
+                        inputFields[a].setText(MieruProxySettings.fromProxySettings(currentProxyInfo.settings).portRange);
+                    } else {
+                        inputFields[a].setText(Integer.toString(currentProxyInfo.settings.getPort()));
+                    }
                     break;
                 case FIELD_USER:
                     inputFields[a].setHintText(LocaleController.getString(R.string.UseProxyUsername));
@@ -440,6 +499,16 @@ public class ProxySettingsActivity extends BaseFragment {
                 case FIELD_SECRET:
                     inputFields[a].setHintText(LocaleController.getString(R.string.UseProxySecret));
                     inputFields[a].setText(currentProxyInfo.settings.getSecret());
+                    break;
+                case FIELD_MIERU_PROTOCOL:
+                    inputFields[a].setHintText(LocaleController.getString(R.string.MieruProtocol));
+                    inputFields[a].setText(currentProxyInfo.settings.getType() == ProxySettings.Type.MIERU
+                            ? MieruProxySettings.fromProxySettings(currentProxyInfo.settings).protocol : MieruProxySettings.DEFAULT_PROTOCOL);
+                    break;
+                case FIELD_MIERU_MULTIPLEXING:
+                    inputFields[a].setHintText(LocaleController.getString(R.string.MieruMultiplexing));
+                    inputFields[a].setText(currentProxyInfo.settings.getType() == ProxySettings.Type.MIERU
+                            ? MieruProxySettings.fromProxySettings(currentProxyInfo.settings).multiplexing : MieruProxySettings.DEFAULT_MULTIPLEXING);
                     break;
             }
             inputFields[a].setSelection(inputFields[a].length());
@@ -553,6 +622,24 @@ public class ProxySettingsActivity extends BaseFragment {
         shareCell.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText4));
         linearLayout2.addView(shareCell, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
         shareCell.setOnClickListener(v -> {
+            if (currentType == ProxySettings.Type.MIERU) {
+                String link = ProxySettings.builder().setType(ProxySettings.Type.MIERU)
+                        .setAddress(inputFields[FIELD_IP].getText().toString())
+                        .setPort(MieruProxySettings.getStartPort(inputFields[FIELD_PORT].getText().toString()))
+                        .setUser(inputFields[FIELD_USER].getText().toString())
+                        .setPassword(inputFields[FIELD_PASSWORD].getText().toString())
+                        .setSecret(new MieruProxySettings(inputFields[FIELD_IP].getText().toString(),
+                                inputFields[FIELD_USER].getText().toString(), inputFields[FIELD_PASSWORD].getText().toString(),
+                                inputFields[FIELD_PORT].getText().toString(), inputFields[FIELD_MIERU_PROTOCOL].getText().toString(),
+                                inputFields[FIELD_MIERU_MULTIPLEXING].getText().toString()).toSecret())
+                        .build().getLink();
+                if (TextUtils.isEmpty(link)) return;
+                QRCodeBottomSheet alert = new QRCodeBottomSheet(context, LocaleController.getString(R.string.ShareQrCode), link, LocaleController.getString(R.string.QRCodeLinkHelpProxy), true);
+                Bitmap icon = SvgHelper.getBitmap(AndroidUtilities.readRes(R.raw.qr_dog), AndroidUtilities.dp(60), AndroidUtilities.dp(60), false);
+                alert.setCenterImage(icon);
+                showDialog(alert);
+                return;
+            }
             StringBuilder params = new StringBuilder();
             String address = inputFields[FIELD_IP].getText().toString();
             String password = inputFields[FIELD_PASSWORD].getText().toString();
@@ -701,11 +788,22 @@ public class ProxySettingsActivity extends BaseFragment {
         if (shareCell == null || doneItem == null || inputFields[FIELD_IP] == null || inputFields[FIELD_PORT] == null) {
             return;
         }
-        boolean enabled = currentType == ProxySettings.Type.WEB
-                ? !TextUtils.isEmpty(WebProxyTransport.normalizeHost(inputFields[FIELD_IP].getText().toString()))
-                    && WebProxyTransport.isValidSecret(inputFields[FIELD_SECRET].getText().toString())
-                : inputFields[FIELD_IP].length() != 0
+        boolean enabled;
+        if (currentType == ProxySettings.Type.WEB) {
+            enabled = !TextUtils.isEmpty(WebProxyTransport.normalizeHost(inputFields[FIELD_IP].getText().toString()))
+                    && WebProxyTransport.isValidSecret(inputFields[FIELD_SECRET].getText().toString());
+        } else if (currentType == ProxySettings.Type.MIERU) {
+            enabled = new MieruProxySettings(
+                    inputFields[FIELD_IP].getText().toString(),
+                    inputFields[FIELD_USER].getText().toString(),
+                    inputFields[FIELD_PASSWORD].getText().toString(),
+                    inputFields[FIELD_PORT].getText().toString(),
+                    inputFields[FIELD_MIERU_PROTOCOL].getText().toString(),
+                    inputFields[FIELD_MIERU_MULTIPLEXING].getText().toString()).isValid();
+        } else {
+            enabled = inputFields[FIELD_IP].length() != 0
                     && Utilities.parseInt(inputFields[FIELD_PORT].getText().toString()) != 0;
+        }
         setShareDoneEnabled(enabled, animated);
     }
 
@@ -716,6 +814,19 @@ public class ProxySettingsActivity extends BaseFragment {
     private void setProxyType(ProxySettings.Type type, boolean animated, Runnable onTransitionEnd) {
         if (currentType != type) {
             currentType = type;
+            if (type == ProxySettings.Type.MIERU && addingNewProxy) {
+                MieruProxySettings defaults = MieruProxySettings.fromLegacyConfig(
+                        new java.io.File(fragmentView.getContext().getFilesDir(), "transport/mieru.json"));
+                if (defaults == null) {
+                    defaults = MieruProxySettings.defaults();
+                }
+                inputFields[FIELD_IP].setText(defaults.address);
+                inputFields[FIELD_PORT].setText(defaults.portRange);
+                inputFields[FIELD_USER].setText(defaults.username);
+                inputFields[FIELD_PASSWORD].setText(defaults.password);
+                inputFields[FIELD_MIERU_PROTOCOL].setText(defaults.protocol);
+                inputFields[FIELD_MIERU_MULTIPLEXING].setText(defaults.multiplexing);
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 TransitionManager.endTransitions(linearLayout2);
             }
@@ -754,14 +865,32 @@ public class ProxySettingsActivity extends BaseFragment {
 
                 TransitionManager.beginDelayedTransition(linearLayout2, transitionSet);
             }
-            if (currentType == ProxySettings.Type.SOCKS5) {
+            if (currentType == ProxySettings.Type.MIERU) {
+                inputFields[FIELD_PORT].setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+                inputFields[FIELD_PORT].setHintText(LocaleController.getString(R.string.MieruPortRange));
+                bottomCells[0].setVisibility(View.VISIBLE);
+                bottomCells[0].setText(LocaleController.getString(R.string.MieruProxyInfo));
+                bottomCells[1].setVisibility(View.GONE);
+                ((View) inputFields[FIELD_SECRET].getParent()).setVisibility(View.GONE);
+                ((View) inputFields[FIELD_PASSWORD].getParent()).setVisibility(View.VISIBLE);
+                ((View) inputFields[FIELD_USER].getParent()).setVisibility(View.VISIBLE);
+                ((View) inputFields[FIELD_PORT].getParent()).setVisibility(View.VISIBLE);
+                ((View) inputFields[FIELD_MIERU_PROTOCOL].getParent()).setVisibility(View.VISIBLE);
+                ((View) inputFields[FIELD_MIERU_MULTIPLEXING].getParent()).setVisibility(View.VISIBLE);
+            } else if (currentType == ProxySettings.Type.SOCKS5) {
+                inputFields[FIELD_PORT].setInputType(InputType.TYPE_CLASS_NUMBER);
+                inputFields[FIELD_PORT].setHintText(LocaleController.getString(R.string.UseProxyPort));
                 bottomCells[0].setVisibility(View.VISIBLE);
                 bottomCells[1].setVisibility(View.GONE);
                 ((View) inputFields[FIELD_SECRET].getParent()).setVisibility(View.GONE);
                 ((View) inputFields[FIELD_PASSWORD].getParent()).setVisibility(View.VISIBLE);
                 ((View) inputFields[FIELD_USER].getParent()).setVisibility(View.VISIBLE);
                 ((View) inputFields[FIELD_PORT].getParent()).setVisibility(View.VISIBLE);
+                ((View) inputFields[FIELD_MIERU_PROTOCOL].getParent()).setVisibility(View.GONE);
+                ((View) inputFields[FIELD_MIERU_MULTIPLEXING].getParent()).setVisibility(View.GONE);
             } else if (currentType == ProxySettings.Type.MTPROTO) {
+                inputFields[FIELD_PORT].setInputType(InputType.TYPE_CLASS_NUMBER);
+                inputFields[FIELD_PORT].setHintText(LocaleController.getString(R.string.UseProxyPort));
                 bottomCells[0].setVisibility(View.GONE);
                 bottomCells[1].setVisibility(View.VISIBLE);
                 bottomCells[1].setText(LocaleController.getString(R.string.UseProxyTelegramInfo) + "\n\n" + LocaleController.getString(R.string.UseProxyTelegramInfo2));
@@ -769,7 +898,11 @@ public class ProxySettingsActivity extends BaseFragment {
                 ((View) inputFields[FIELD_PASSWORD].getParent()).setVisibility(View.GONE);
                 ((View) inputFields[FIELD_USER].getParent()).setVisibility(View.GONE);
                 ((View) inputFields[FIELD_PORT].getParent()).setVisibility(View.VISIBLE);
+                ((View) inputFields[FIELD_MIERU_PROTOCOL].getParent()).setVisibility(View.GONE);
+                ((View) inputFields[FIELD_MIERU_MULTIPLEXING].getParent()).setVisibility(View.GONE);
             } else if (currentType == ProxySettings.Type.WEB) {
+                inputFields[FIELD_PORT].setInputType(InputType.TYPE_CLASS_NUMBER);
+                inputFields[FIELD_PORT].setHintText(LocaleController.getString(R.string.UseProxyPort));
                 bottomCells[0].setVisibility(View.GONE);
                 bottomCells[1].setVisibility(View.VISIBLE);
                 bottomCells[1].setText(LocaleController.getString(R.string.UseProxyWebInfo));
@@ -777,12 +910,15 @@ public class ProxySettingsActivity extends BaseFragment {
                 ((View) inputFields[FIELD_PASSWORD].getParent()).setVisibility(View.GONE);
                 ((View) inputFields[FIELD_USER].getParent()).setVisibility(View.GONE);
                 ((View) inputFields[FIELD_PORT].getParent()).setVisibility(View.GONE);
+                ((View) inputFields[FIELD_MIERU_PROTOCOL].getParent()).setVisibility(View.GONE);
+                ((View) inputFields[FIELD_MIERU_MULTIPLEXING].getParent()).setVisibility(View.GONE);
                 inputFields[FIELD_PORT].setText("443");
             }
             shareCell.setVisibility(currentType == ProxySettings.Type.WEB ? View.GONE : View.VISIBLE);
             typeCell[0].setChecked(currentType == ProxySettings.Type.SOCKS5, animated);
             typeCell[1].setChecked(currentType == ProxySettings.Type.MTPROTO, animated);
             typeCell[2].setChecked(currentType == ProxySettings.Type.WEB, animated);
+            typeCell[3].setChecked(currentType == ProxySettings.Type.MIERU, animated);
             checkShareDone(animated);
         }
     }

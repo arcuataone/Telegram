@@ -136,7 +136,57 @@ class AsyncHttpsProxySocket : public BufferedReadAdapter {
   HttpAuthContext* context_;
   std::string unknown_mechanisms_;
 };
+///////////////////////////////////////////////////////////////////////////////
 
+// SOCKS5 proxy adapter.
+    class AsyncSocksProxySocket : public BufferedReadAdapter {
+    public:
+        AsyncSocksProxySocket(Socket* socket,
+                              const SocketAddress& proxy,
+                              absl::string_view username,
+                              const CryptString& password,
+                              uint8_t command = 1);
+        ~AsyncSocksProxySocket() override;
+
+        AsyncSocksProxySocket(const AsyncSocksProxySocket&) = delete;
+        AsyncSocksProxySocket& operator=(const AsyncSocksProxySocket&) = delete;
+
+        int Connect(const SocketAddress& addr) override;
+        SocketAddress GetRemoteAddress() const override;
+        int Close() override;
+        ConnState GetState() const override;
+
+        uint16_t GetBoundPort() const {
+            return bound_port_;
+        }
+
+    protected:
+        void OnConnectEvent(Socket* socket) override;
+        void ProcessInput(char* data, size_t* len) override;
+
+    private:
+        void SendHello();
+        void SendAuth();
+        void SendConnect();
+        void Error(int error);
+
+        enum State {
+            SS_INIT,
+            SS_HELLO,
+            SS_AUTH,
+            SS_CONNECT,
+            SS_TUNNEL,
+            SS_ERROR
+        };
+
+        State state_;
+        SocketAddress proxy_;
+        SocketAddress dest_;
+        std::string user_;
+        CryptString pass_;
+        uint8_t command_;
+        uint16_t bound_port_ = 0;
+    };
 }  // namespace rtc
 
 #endif  // RTC_BASE_SOCKET_ADAPTERS_H_

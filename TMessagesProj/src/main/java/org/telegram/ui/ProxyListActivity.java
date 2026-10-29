@@ -48,6 +48,7 @@ import org.telegram.messenger.ProxyRotationController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.utils.proxy.ProxySettings;
+import org.telegram.utils.proxy.MieruProxySettings;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.ActionBarMenu;
@@ -172,9 +173,14 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
         }
 
         public void setProxy(SharedConfig.ProxyInfo proxyInfo) {
-            textView.setText(proxyInfo.settings.getType() == ProxySettings.Type.WEB
-                    ? proxyInfo.settings.getAddress() + " (WEB)"
-                    : proxyInfo.settings.getAddress() + ":" + proxyInfo.settings.getPort());
+            if (proxyInfo.settings.getType() == ProxySettings.Type.WEB) {
+                textView.setText(proxyInfo.settings.getAddress() + " (WEB)");
+            } else if (proxyInfo.settings.getType() == ProxySettings.Type.MIERU) {
+                MieruProxySettings mieru = MieruProxySettings.fromProxySettings(proxyInfo.settings);
+                textView.setText(proxyInfo.settings.getAddress() + ":" + mieru.portRange + " (Mieru)");
+            } else {
+                textView.setText(proxyInfo.settings.getAddress() + ":" + proxyInfo.settings.getPort());
+            }
             currentInfo = proxyInfo;
         }
 
@@ -418,7 +424,7 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
                 editor.putBoolean("proxy_enabled", useProxySettings);
                 editor.commit();
 
-                ConnectionsManager.setProxySettings(useProxySettings, SharedConfig.currentProxy.settings);
+                org.telegram.messenger.transport.MieruController.apply(getParentActivity(), useProxySettings, SharedConfig.currentProxy.settings);
                 NotificationCenter.getGlobalInstance().removeObserver(ProxyListActivity.this, NotificationCenter.proxySettingsChanged);
                 NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.proxySettingsChanged);
                 NotificationCenter.getGlobalInstance().addObserver(ProxyListActivity.this, NotificationCenter.proxySettingsChanged);
@@ -463,7 +469,7 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
                     TextCheckCell textCheckCell = (TextCheckCell) holder.itemView;
                     textCheckCell.setChecked(true);
                 }
-                ConnectionsManager.setProxySettings(useProxySettings, SharedConfig.currentProxy.settings);
+                org.telegram.messenger.transport.MieruController.apply(getParentActivity(), useProxySettings, SharedConfig.currentProxy.settings);
             } else if (position == proxyAddRow) {
                 presentFragment(new ProxySettingsActivity());
             } else if (position == deleteAllRow) {
@@ -671,6 +677,11 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
     private void checkProxyList() {
         for (int a = 0, count = proxyList.size(); a < count; a++) {
             final SharedConfig.ProxyInfo proxyInfo = proxyList.get(a);
+            if (proxyInfo.settings.getType() == ProxySettings.Type.MIERU) {
+                proxyInfo.checking = false;
+                proxyInfo.available = true;
+                continue;
+            }
             if (proxyInfo.checking || SystemClock.elapsedRealtime() - proxyInfo.availableCheckTime < 2 * 60 * 1000) {
                 continue;
             }
