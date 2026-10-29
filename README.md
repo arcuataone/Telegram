@@ -1,46 +1,56 @@
-## Telegram messenger for Android
+# QiQiGram
 
-[Telegram](https://telegram.org) is a messaging app with a focus on speed and security. It’s superfast, simple and free.
-This repo contains the official source code for [Telegram App for Android](https://play.google.com/store/apps/details?id=org.telegram.messenger).
+Неофициальный форк Telegram для Android с поддержкой Mieru и небольшими изменениями интерфейса для повседневного использования.
 
-## Creating your Telegram Application
+Основан на [Telegram for Android](https://github.com/DrKLO/Telegram), версия **13.1.1 (7237)**. Развивается постепенно: изменения переносятся и проверяются по отдельности.
 
-We welcome all developers to use our API and source code to create applications on our platform.
-There are several things we require from **all developers** for the moment.
+## Что изменено
 
-1. [**Obtain your own api_id**](https://core.telegram.org/api/obtaining_api_id) for your application.
-2. Please **do not** use the name Telegram for your app — or make sure your users understand that it is unofficial.
-3. Kindly **do not** use our standard logo (white paper plane in a blue circle) as your app's logo.
-3. Please study our [**security guidelines**](https://core.telegram.org/mtproto/security_guidelines) and take good care of your users' data and privacy.
-4. Please remember to publish **your** code too in order to comply with the licences.
+- **Mieru в списке прокси.** Профиль добавляется через «Настройки прокси → Добавить прокси». Для протокола TCP/UDP и уровня мультиплексирования есть селекторы. Подключением можно поделиться ссылкой или QR-кодом. Встроенный клиент Mieru — **3.39.0**.
+- **Автозапуск Mieru.** Выбранный профиль восстанавливается при запуске приложения. После старта прокси повторно запрашиваются пользовательские папки чатов.
+- **Прокси на главном экране.** Кнопка в верхней панели списка чатов показывает состояние прокси и открывает его настройки.
+- **Скрытие историй.** Переключатель находится в конце раздела «Настройки чатов → Прочие настройки». По умолчанию выключен.
+- **Без рекламных сообщений Telegram.** Отключены sponsored messages в чатах и реклама при просмотре видео.
+- **Подарки каналу в меню.** «Отправить подарок» перенесено из нижней панели в меню ⋮ под пункт «Поиск». Возможность отправлять подарки сохранена.
+- **Своя версия сборки.** Внизу настроек отображаются версия QiQiGram, версия Telegram и ссылка на этот репозиторий.
 
-### API, Protocol documentation
+## Состояние проекта
 
-Telegram API manuals: https://core.telegram.org/api
+Текущий номер сборки QiQiGram — **0.01**. Скрипт сборки увеличивает его на 0.01 после каждой успешной сборки: 0.02, 0.03 и далее. Версия Telegram указывается отдельно.
 
-MTproto protocol manuals: https://core.telegram.org/mtproto
+Пакет beta: `net.arcuata.qiqigram.beta`. Текущая сборка предназначена для **ARM64**; установка и работа проверялись на Nothing Phone (3a) Pro с Android 16. Другие архитектуры пока не подготовлены.
 
-### Compilation Guide
+Это личный экспериментальный форк, не официальный клиент Telegram. Проект не связан с командой Telegram.
 
-**Note**: In order to support [reproducible builds](https://core.telegram.org/reproducible-builds), this repo contains dummy release.keystore,  google-services.json and filled variables inside BuildVars.java. Before publishing your own APKs please make sure to replace all these files with your own.
+## Сборка
 
-You will require Android Studio 2025.1.4, Android NDK 27.2.12479018 and Android SDK 36.
+Основные инструменты: **JDK 21**, **Android SDK 36**, **NDK 27.2.12479018**, **CMake 3.22.1** и Gradle Wrapper из репозитория.
 
-1. Clone the Telegram source code with its submodules:
-   ```bash
-   git clone --recursive --shallow-submodules https://github.com/DrKLO/Telegram.git Telegram
-   ```
-   In case you forgot the `--recursive` flag, change to the `Telegram` directory and run:
-   ```bash
-   git submodule init && git submodule update --init --recursive --depth=1
-   ```
-2. Copy your release.keystore into TMessagesProj/config
-3. Fill out RELEASE_KEY_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_STORE_PASSWORD in gradle.properties to access your  release.keystore
-4.  Go to https://console.firebase.google.com/, create two android apps with application IDs org.telegram.messenger and org.telegram.messenger.beta, turn on firebase messaging and download google-services.json, which should be copied to the same folder as TMessagesProj.
-5. Open the project in the Studio (note that it should be opened, NOT imported).
-6. Fill out values in TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java – there’s a link for each of the variables showing where and which data to obtain.
-7. You are ready to compile Telegram.
+```bash
+git clone --recursive https://github.com/arcuataone/Telegram.git
+cd Telegram
+```
 
-### Localization
+Перед самостоятельной сборкой настройте собственные Telegram API ID/hash, Firebase для своего application ID и ключ подписи. Инструкции исходного проекта сохранены в [документации Telegram](docs/README-upstream.md). Учитывайте package ID и настройки подписи этого форка.
 
-We moved all translations to https://translations.telegram.org/en/android/. Please use it.
+Для окружения разработки в Arch Linux / systemd-nspawn есть [скрипт сборки](tools/build-qiqigram-apk.sh). Он рассчитан на checkout в `/work/Telegram`, Android SDK в `/opt/android-sdk` и JDK 21 в `/usr/lib/jvm/java-21-openjdk`; контейнер и SDK нужно подготовить отдельно.
+
+```bash
+bash tools/build-qiqigram-apk.sh
+```
+
+Скрипт собирает подписанный ARM64 release APK. Параметры подписи читает Gradle из `~/.config/qiqigram/signing.properties`; приватный keystore хранится вне репозитория. Скрипт ожидает его по пути `~/.config/qiqigram/qiqigram.jks`.
+
+Счётчик успешных сборок сохраняется в `/work/build-state/qiqigram-build-number`. Этот файл нужно сохранять при переносе окружения. При ручном запуске Gradle номер можно передать параметром `-PqiqigramBuildNumber=1` (0.01), `2` (0.02) и т. д.; автоматическое увеличение выполняет скрипт.
+
+## Приватные настройки
+
+Адреса серверов Mieru, логины, пароли и импортированные профили сохраняются в данных приложения на устройстве. Персональные подключения и ключи подписи не должны попадать в Git. Перед публикацией ссылки или QR-кода учитывайте, что они содержат параметры подключения.
+
+## Исходники и лицензии
+
+- [Telegram for Android](https://github.com/DrKLO/Telegram) — исходный Android-клиент. Сохраняются лицензия проекта и уведомления об авторских правах.
+- [Mieru](https://github.com/enfein/mieru) — встроенный прокси-клиент; лицензия и сведения о бинарнике находятся в [third_party/mieru](third_party/mieru).
+- [tgcalls форка](https://github.com/arcuataone/tgcalls) — используемый submodule библиотеки звонков.
+
+Лицензии компонентов и их уведомления сохранены в репозитории.
