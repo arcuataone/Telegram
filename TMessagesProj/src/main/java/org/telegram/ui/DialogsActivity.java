@@ -509,6 +509,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     public static boolean switchingTheme;
     private ActionBarMenuItem doneItem;
     private ProxyDrawable proxyDrawable;
+    private ProxyDrawable proxyTopDrawable;
+    private ActionBarMenuItem proxyTopItem;
     private ActionBarMenuSubItem proxyMenuSubItem;
     private HintView2 storyHint;
     private HintView2 storyPremiumHint;
@@ -3262,6 +3264,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             doneItem.setAlpha(0.0f);
             doneItem.setVisibility(View.GONE);
             proxyDrawable = new ProxyDrawable(context);
+            proxyTopDrawable = new ProxyDrawable(context);
+            proxyTopItem = menu.addItem(2, proxyTopDrawable);
+            proxyTopItem.setContentDescription(getString(R.string.ProxySettings));
+            proxyTopItem.setOnClickListener(v -> presentFragment(new ProxyListActivity()));
             proxyMenuSubItem = new ActionBarMenuSubItem(context, false, true, resourceProvider);
             proxyMenuSubItem.setItemHeight(56);
             proxyMenuSubItem.setTextAndIcon(getString(R.string.MenuProxyTitle), 0, proxyDrawable);
@@ -10238,10 +10244,16 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         checkUi_itemDownloadsVisibility();
 
         final SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);
-        boolean proxyEnabled = preferences.getBoolean("proxy_enabled", false);
-        final boolean connected = currentConnectionState == ConnectionsManager.ConnectionStateConnected || currentConnectionState == ConnectionsManager.ConnectionStateUpdating;
+        boolean mieruEnabled = org.telegram.messenger.transport.MieruController.isEnabled();
+        boolean proxyEnabled = preferences.getBoolean("proxy_enabled", false) || mieruEnabled;
+        final boolean connected = mieruEnabled
+                ? org.telegram.messenger.transport.TransportManager.getInstance().isRunning()
+                : currentConnectionState == ConnectionsManager.ConnectionStateConnected || currentConnectionState == ConnectionsManager.ConnectionStateUpdating;
         proxyMenuSubItem.setSubtext(getString(proxyEnabled ? (connected ? R.string.MenuProxyConnected : R.string.MenuProxyConnecting) : R.string.MenuProxyDisabled));
         proxyDrawable.setConnected(proxyEnabled, connected, animated);
+        if (proxyTopDrawable != null) {
+            proxyTopDrawable.setConnected(proxyEnabled, connected, animated);
+        }
     }
 
     private AnimatorSet doneItemAnimator;
