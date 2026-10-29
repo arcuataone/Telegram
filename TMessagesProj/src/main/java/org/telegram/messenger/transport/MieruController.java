@@ -31,10 +31,14 @@ public class MieruController {
 
     public static void migrateLegacyProfile(Context context) {
         SharedPreferences preferences = MessagesController.getGlobalMainSettings();
+        // loadConfig() does not restore the selected proxy. This method is also
+        // called on every app start, so load the list even after legacy
+        // migration has completed; otherwise currentProxy remains null and an
+        // enabled Mieru profile is never started after a cold launch.
+        SharedConfig.loadProxyList();
         if (preferences.getBoolean(PREF_MIGRATED, false)) {
             return;
         }
-        SharedConfig.loadProxyList();
         for (SharedConfig.ProxyInfo info : SharedConfig.proxyList) {
             if (isMieru(info.settings)) {
                 preferences.edit().putBoolean(PREF_MIGRATED, true).apply();
