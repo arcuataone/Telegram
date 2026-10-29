@@ -11635,4 +11635,5 @@
     <string name="MieruProtocol">Protocol (TCP/UDP)</string>
     <string name="MieruMultiplexing">Multiplexing level</string>
     <string name="MieruProxyInfo">Mieru proxy connection settings.</string>
+    <string name="HideStories">Hide Stories</string>
 </resources>

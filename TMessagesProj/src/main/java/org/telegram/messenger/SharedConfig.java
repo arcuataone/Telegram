@@ -148,6 +148,14 @@ public class SharedConfig {
                 .apply();
     }
 
+    public static void toggleHideStories() {
+        hideStories = !hideStories;
+        ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE)
+                .edit()
+                .putBoolean("hideStories", hideStories)
+                .apply();
+    }
+
     public static void toggleSurfaceInStories() {
         useSurfaceInStories = !useSurfaceInStories;
         ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE)
@@ -265,6 +273,7 @@ public class SharedConfig {
     public static Boolean useCamera2Force;
     public static boolean useNewBlur;
     public static boolean useSurfaceInStories;
+    public static boolean hideStories;
     public static boolean photoViewerBlur = true;
     public static boolean payByInvoice;
     public static int stealthModeSendMessageConfirm = 2;
@@ -676,6 +685,7 @@ public class SharedConfig {
             useNewBlur = preferences.getBoolean("useNewBlur", true);
             useCamera2Force = !preferences.contains("useCamera2Force_2") ? null : preferences.getBoolean("useCamera2Force_2", false);
             useSurfaceInStories = preferences.getBoolean("useSurfaceInStories", Build.VERSION.SDK_INT >= 30);
+            hideStories = preferences.getBoolean("hideStories", false);
             payByInvoice = preferences.getBoolean("payByInvoice", false);
             photoViewerBlur = preferences.getBoolean("photoViewerBlur", true);
             multipleReactionsPromoShowed = preferences.getBoolean("multipleReactionsPromoShowed", false);

@@ -268,4 +268,5 @@
     <string name="MieruProtocol">Протокол (TCP/UDP)</string>
     <string name="MieruMultiplexing">Уровень мультиплексирования</string>
     <string name="MieruProxyInfo">Параметры подключения к прокси Mieru.</string>
+    <string name="HideStories">Скрывать истории</string>
 </resources>

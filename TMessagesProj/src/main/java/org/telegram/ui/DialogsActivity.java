@@ -12790,6 +12790,17 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     }
 
     public void updateStoriesVisibility(boolean animated) {
+        if (SharedConfig.hideStories) {
+            hasStories = false;
+            hasOnlySlefStories = false;
+            dialogStoriesCellVisible = false;
+            progressToShowStories = 0f;
+            progressToDialogStoriesCell = 0f;
+            if (dialogStoriesCell != null) {
+                dialogStoriesCell.setVisibility(View.GONE);
+            }
+            return;
+        }
         if (dialogStoriesCell == null || storiesVisibilityAnimator != null || rightSlidingDialogContainer != null && rightSlidingDialogContainer.hasFragment() || searchIsShowed || actionBar == null || actionBar.isActionModeShowed() || onlySelect) {
             return;
         }
