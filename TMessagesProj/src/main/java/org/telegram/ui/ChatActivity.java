@@ -504,6 +504,8 @@ public class ChatActivity extends BaseFragment implements
     private AnimatedTextView selectedMessagesCountTextView;
     private RecyclerListView.OnItemClickListener mentionsOnItemClickListener;
     private SuggestEmojiView suggestEmojiPanel;
+    private ActionBarMenuItem.Item channelGiftItem;
+    private boolean channelGiftVisible;
     private ActionBarMenuItem.Item muteItem;
     private ActionBarMenuItem.Item muteItemGap;
     private ActionBarMenuItem.Item feeItemGap;
@@ -1704,6 +1706,7 @@ public class ChatActivity extends BaseFragment implements
     private final static int charge_fee = 72;
 
     private final static int chat_menu_topic_create = 73;
+    private final static int send_channel_gift = 75;
 
     private final static int id_chat_compose_panel = 1000;
 
@@ -4009,6 +4012,9 @@ public class ChatActivity extends BaseFragment implements
                     getSendMessagesHelper().sendMessage(SendMessagesHelper.SendMessageParams.of("/help", dialog_id, null, null, null, false, null, null, null, true, 0, 0, null, false));
                 } else if (id == bot_settings) {
                     getSendMessagesHelper().sendMessage(SendMessagesHelper.SendMessageParams.of("/settings", dialog_id, null, null, null, false, null, null, null, true, 0, 0, null, false));
+                } else if (id == send_channel_gift) {
+                    HintsController.Hint.ChannelGiftHint.doNotShowAgain();
+                    showDialog(new GiftSheet(getContext(), currentAccount, getDialogId(), null, null));
                 } else if (id == search) {
                     openSearchWithText(isSupportedTags() ? "" : null);
                 } else if (id == translate) {
@@ -4465,6 +4471,10 @@ public class ChatActivity extends BaseFragment implements
 
             if (searchItem != null) {
                 headerItem.lazilyAddSubItem(search, R.drawable.msg_search, LocaleController.getString(R.string.Search));
+                if (ChatObject.isChannelAndNotMegaGroup(currentChat)) {
+                    channelGiftItem = headerItem.lazilyAddSubItem(send_channel_gift, R.drawable.msg_gift_premium, getString(R.string.Gift2ChannelSend));
+                    channelGiftItem.setVisibility(View.GONE);
+                }
             }
             if (ChatObject.isBoostSupported(currentChat) && (getUserConfig().isPremium() || ChatObject.isBoosted(chatInfo) || ChatObject.hasAdminRights(currentChat))) {
                 RLottieDrawable drawable = new RLottieDrawable(R.raw.boosts, dp(24), dp(24));
@@ -8423,10 +8433,6 @@ public class ChatActivity extends BaseFragment implements
             createUndoView();
             undoView.showWithAction(dialog_id, UndoView.ACTION_TEXT_INFO, LocaleController.getString(R.string.BroadcastGroupInfo));
         });
-        bottomChannelButtonsLayout.setButtonOnClickListener(ChatActivityChannelButtonsLayout.BUTTON_GIFT, v -> {
-            HintsController.Hint.ChannelGiftHint.doNotShowAgain();
-            showDialog(new GiftSheet(getContext(), currentAccount, getDialogId(), null, null));
-        });
         bottomChannelButtonsLayout.setButtonOnClickListener(ChatActivityChannelButtonsLayout.BUTTON_DIRECT, v -> {
             HintsController.Hint.ChannelSuggestHint.doNotShowAgain();
             if (currentChat != null && currentChat.linked_monoforum_id != 0) {
@@ -8436,25 +8442,6 @@ public class ChatActivity extends BaseFragment implements
                 bundle.putInt("chatMode", MODE_SUGGESTIONS);
                 bundle.putBoolean("isSubscriberSuggestions", true);
                 presentFragment(new ChatActivity(bundle));
-            }
-        });
-        bottomChannelButtonsLayout.setButtonOnFullyVisibleListener(ChatActivityChannelButtonsLayout.BUTTON_GIFT, (v, id, firstTime) -> {
-            if (bottomGiftHintView == null && firstTime && (bottomSuggestHintView == null || !bottomSuggestHintView.shown()) && HintsController.Hint.ChannelGiftHint.show()) {
-                AndroidUtilities.runOnUIThread(() -> {
-                    if (getContext() == null) return;
-                    final float offset = windowInsetsStateHolder.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom / AndroidUtilities.density;
-                    final float translate = (contentView.getWidth() - (v.getX() + v.getWidth()) + v.getWidth() / 2f) / AndroidUtilities.density;
-
-                    bottomGiftHintView = new HintView2(getContext(), HintView2.DIRECTION_BOTTOM);
-                    bottomGiftHintView.setPadding(dp(7.33f), 0, dp(7.33f), 0);
-                    bottomGiftHintView.setMultilineText(false);
-                    bottomGiftHintView.setText(getString(R.string.Gift2ChannelSendHint));
-                    bottomGiftHintView.setJoint(1, -translate + 7.33f);
-                    contentView.addView(bottomGiftHintView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 100, Gravity.BOTTOM | Gravity.FILL_HORIZONTAL, 0, 0, 0, offset + 50));
-                    bottomGiftHintView.setOnHiddenListener(() -> AndroidUtilities.removeFromParent(bottomGiftHintView));
-                    bottomGiftHintView.show();
-                    HintsController.Hint.ChannelGiftHint.increment();
-                }, 400);
             }
         });
         bottomChannelButtonsLayout.setButtonOnFullyVisibleListener(ChatActivityChannelButtonsLayout.BUTTON_DIRECT, (v, id, firstTime) -> {
@@ -28351,7 +28338,11 @@ public class ChatActivity extends BaseFragment implements
         bottomChannelButtonsLayout.updateWrappingVisible(animated);
         bottomChannelButtonsLayout.showButton(ChatActivityChannelButtonsLayout.BUTTON_SEARCH, showSearchButton && bottomChannelButtonsLayout.getVisibility() == View.VISIBLE, animated);
         bottomChannelButtonsLayout.showButton(ChatActivityChannelButtonsLayout.BUTTON_DIRECT, showSuggestButton && bottomChannelButtonsLayout.getVisibility() == View.VISIBLE, animated);
-        bottomChannelButtonsLayout.showButton(ChatActivityChannelButtonsLayout.BUTTON_GIFT, showGiftButton && bottomChannelButtonsLayout.getVisibility() == View.VISIBLE, animated);
+        bottomChannelButtonsLayout.showButton(ChatActivityChannelButtonsLayout.BUTTON_GIFT, false, animated);
+        channelGiftVisible = showGiftButton && bottomChannelButtonsLayout.getVisibility() == View.VISIBLE;
+        if (channelGiftItem != null) {
+            channelGiftItem.setVisibility(channelGiftVisible ? View.VISIBLE : View.GONE);
+        }
         bottomChannelButtonsLayout.showButton(ChatActivityChannelButtonsLayout.BUTTON_GIGA_GROUP_INFO, showGigaGroupButton && bottomChannelButtonsLayout.getVisibility() == View.VISIBLE, animated);
 
         checkRaiseSensors();
@@ -45591,7 +45582,7 @@ public class ChatActivity extends BaseFragment implements
 
         if (chatInfo != null) {
             final boolean giftUpdate = (chatInfo.stargifts_available)
-                != (bottomChannelButtonsLayout != null && bottomChannelButtonsLayout.isButtonVisible(ChatActivityChannelButtonsLayout.BUTTON_GIFT));
+                != channelGiftVisible;
 
             final boolean suggestUpdate = (currentChat != null && currentChat.broadcast_messages_allowed && currentChat.linked_monoforum_id != 0)
                 != (bottomChannelButtonsLayout != null && bottomChannelButtonsLayout.isButtonVisible(ChatActivityChannelButtonsLayout.BUTTON_DIRECT));
