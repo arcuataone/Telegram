@@ -12,19 +12,13 @@ mkdir -p /work/build-logs /work/artifacts
 test -s /root/.config/qiqigram/signing.properties
 test -s /root/.config/qiqigram/qiqigram.jks
 
-# Persist a successful-build counter outside the checkout. Lock the build so
-# simultaneous invocations cannot reserve the same number.
+# Serialize builds that share the checkout and output directories.
 mkdir -p /work/build-state
 exec 9>/work/build-state/qiqigram.lock
 flock 9
 python3 tools/prepare-firebase.py "${QIQIGRAM_FIREBASE_CONFIG:-/root/.config/qiqigram/google-services.json}"
-last_build=0
-if [[ -f /work/build-state/qiqigram-build-number ]]; then
-  read -r last_build < /work/build-state/qiqigram-build-number
-fi
-[[ "$last_build" =~ ^[0-9]+$ ]] || { echo "Invalid QiQiGram build counter"; exit 1; }
-build_number=$((10#$last_build + 1))
-printf -v fork_version '%d.%02d' "$((build_number / 100))" "$((build_number % 100))"
+fork_version="$(cat qiqigram-version.txt)"
+[[ "$fork_version" =~ ^(0|[1-9][0-9]*)\.[0-9]{2}$ ]] || { echo "Invalid QiQiGram version in qiqigram-version.txt"; exit 1; }
 echo "QiQiGram version: $fork_version"
 
 build_revision="$(git rev-parse --short=12 HEAD)"
@@ -33,7 +27,6 @@ echo "Building signed QiQiGram beta from $build_revision"
 echo "Build log: $build_log"
 
 if ! bash ./gradlew :TMessagesProj_App:assembleAfatRelease \
-  -PqiqigramBuildNumber="$build_number" \
   -Pandroid.injected.build.abi=arm64-v8a \
   -Pandroid.injected.testOnly=false \
   --max-workers=6 --console=plain --stacktrace \
@@ -62,8 +55,6 @@ if grep -q "^testOnly='-1'" /work/build-logs/qiqigram-apk-badging.txt; then
   exit 1
 fi
 cp "$apk" "$artifact"
-printf '%s\n' "$build_number" > /work/build-state/qiqigram-build-number.tmp
-mv /work/build-state/qiqigram-build-number.tmp /work/build-state/qiqigram-build-number
 sha256sum "$artifact"
 head -n 3 /work/build-logs/qiqigram-apk-badging.txt
 grep -E 'Signer #1 certificate SHA-256 digest|Verified using v[123]' \
