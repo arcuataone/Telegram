@@ -17,6 +17,7 @@ test -s /root/.config/qiqigram/qiqigram.jks
 mkdir -p /work/build-state
 exec 9>/work/build-state/qiqigram.lock
 flock 9
+python3 tools/prepare-firebase.py "${QIQIGRAM_FIREBASE_CONFIG:-/root/.config/qiqigram/google-services.json}"
 last_build=0
 if [[ -f /work/build-state/qiqigram-build-number ]]; then
   read -r last_build < /work/build-state/qiqigram-build-number

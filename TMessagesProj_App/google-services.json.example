@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "288032144954",
-    "project_id": "qiqigram-feb02",
-    "storage_bucket": "qiqigram-feb02.firebasestorage.app"
+    "project_number": "YOUR_FIREBASE_PROJECT_NUMBER",
+    "project_id": "YOUR_FIREBASE_PROJECT_ID",
+    "storage_bucket": "YOUR_FIREBASE_STORAGE_BUCKET"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:288032144954:android:f3d9fde98d7eb44c063f03",
+        "mobilesdk_app_id": "YOUR_FIREBASE_ANDROID_APP_ID",
         "android_client_info": {
           "package_name": "net.arcuata.qiqigram.beta"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDSDHmbatG1lUMqkOabmCRURIZ80WR8Tdo"
+          "current_key": "YOUR_FIREBASE_CLIENT_API_KEY"
         }
       ],
       "services": {

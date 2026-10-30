@@ -37,6 +37,27 @@ cd Telegram
 bash tools/build-qiqigram-apk.sh
 ```
 
+### Firebase для самостоятельной сборки
+
+Создайте собственное Android-приложение в Firebase с package ID `net.arcuata.qiqigram.beta`, скачайте его `google-services.json` и сохраните вне checkout:
+
+```bash
+mkdir -p ~/.config/qiqigram
+install -m 600 /path/to/downloaded/google-services.json ~/.config/qiqigram/google-services.json
+```
+
+[Шаблон конфигурации](TMessagesProj_App/google-services.json.example) показывает структуру файла и содержит только заглушки. Для сборки используйте файл, скачанный из своего Firebase-проекта.
+
+Скрипт сборки автоматически запускает `tools/prepare-firebase.py`: он проверяет конфиг и копирует его в игнорируемый `TMessagesProj_App/google-services.json`. Другой исходный путь можно задать переменной `QIQIGRAM_FIREBASE_CONFIG`. Если конфиг отсутствует или содержит заглушки, сборка останавливается.
+
+Перед ручным запуском Gradle подготовьте конфиг отдельно:
+
+```bash
+python3 tools/prepare-firebase.py
+```
+
+Официальные релизные APK QiQiGram включают рабочую клиентскую конфигурацию Firebase и готовы к установке. В исходниках хранится шаблон; ключи сервисного аккаунта Firebase Admin SDK в APK и Git не включаются. В остальных модулях сохранены исходные конфиги Telegram — для собственных сборок этих вариантов настройте их отдельно.
+
 Скрипт собирает подписанный ARM64 release APK. Параметры подписи читает Gradle из `~/.config/qiqigram/signing.properties`; приватный keystore хранится вне репозитория. Скрипт ожидает его по пути `~/.config/qiqigram/qiqigram.jks`.
 
 Счётчик успешных сборок сохраняется в `/work/build-state/qiqigram-build-number`. Этот файл нужно сохранять при переносе окружения. При ручном запуске Gradle номер можно передать параметром `-PqiqigramBuildNumber=1` (0.01), `2` (0.02) и т. д.; автоматическое увеличение выполняет скрипт.

@@ -20,3 +20,8 @@ TMessagesProj/jni/ffmpeg/build_android
 **/mieru.local.json
 **/mieru.config.json
 **/mieru_client_config.json
+
+# Local Firebase configuration is staged from ~/.config/qiqigram at build time.
+/TMessagesProj_App/google-services.json
+/TMessagesProj_App/google-services.json.tmp
+/TMessagesProj_App/src/**/google-services.json
