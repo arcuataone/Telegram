@@ -110,7 +110,7 @@ public final class ProxySettings {
             case MIERU:
                 MieruProxySettings mieru = MieruProxySettings.fromProxySettings(this);
                 try {
-                    return "qiqigram://mieru?server=" + URLEncoder.encode(address, "UTF-8")
+                    return "https://t.me/proxy?type=mieru&server=" + URLEncoder.encode(address, "UTF-8")
                             + "&ports=" + URLEncoder.encode(mieru.portRange, "UTF-8")
                             + "&protocol=" + URLEncoder.encode(mieru.protocol, "UTF-8")
                             + "&mux=" + URLEncoder.encode(mieru.multiplexing, "UTF-8")
@@ -238,6 +238,19 @@ public final class ProxySettings {
         }
     }
 
+    /** Accept a proxy link on its own or inside a copied message. */
+    public static ProxySettings fromText(CharSequence text) {
+        if (text == null) return null;
+        java.util.regex.Matcher links = Pattern.compile(
+                "(?i)(?:qiqigram://mieru|tg:(?://)?(?:socks|proxy|webproxy)|https?://(?:t\\.me|telegram\\.me|telegram\\.dog)/(?:socks|proxy|webproxy))\\?[^\\s<>\"]+")
+                .matcher(text);
+        while (links.find()) {
+            ProxySettings settings = fromUri(Uri.parse(links.group()));
+            if (settings != null && settings.isValid()) return settings;
+        }
+        return null;
+    }
+
     public static ProxySettings fromUri(Uri uri) {
         if (uri == null) {
             return null;
@@ -257,6 +270,7 @@ public final class ProxySettings {
                         uri.getQueryParameter("user"), uri.getQueryParameter("pass"),
                         uri.getQueryParameter("ports"), uri.getQueryParameter("protocol"),
                         uri.getQueryParameter("mux"));
+                if (!mieru.isValid()) return null;
                 ProxySettings settings = builder()
                         .setType(Type.MIERU)
                         .setAddress(mieru.address)
@@ -280,6 +294,10 @@ public final class ProxySettings {
                 String path = uri.getPath();
                 if (path == null) {
                     return null;
+                }
+
+                if (path.equals("/proxy") && "mieru".equalsIgnoreCase(uri.getQueryParameter("type"))) {
+                    return fromUri(Uri.parse("qiqigram://mieru?" + uri.getEncodedQuery()));
                 }
 
                 if (path.startsWith("/socks")) {
@@ -310,6 +328,9 @@ public final class ProxySettings {
                 }
 
                 uri = Uri.parse("tg://telegram.org/" + url.substring(queryIndex));
+                if (type == Type.MTPROTO && "mieru".equalsIgnoreCase(uri.getQueryParameter("type"))) {
+                    return fromUri(Uri.parse("qiqigram://mieru?" + uri.getEncodedQuery()));
+                }
             } else {
                 return null;
             }

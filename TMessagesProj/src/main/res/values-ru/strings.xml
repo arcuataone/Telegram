@@ -269,4 +269,5 @@
     <string name="MieruMultiplexing">Уровень мультиплексирования</string>
     <string name="MieruProxyInfo">Параметры подключения к прокси Mieru.</string>
     <string name="HideStories">Скрывать истории</string>
+    <string name="ProxyImportInvalid">Ссылка на прокси не найдена. Скопируйте ссылку Mieru или Telegram либо отсканируйте её QR-код.</string>
 </resources>

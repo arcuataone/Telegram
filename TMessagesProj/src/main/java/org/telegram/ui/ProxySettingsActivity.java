@@ -549,65 +549,7 @@ public class ProxySettingsActivity extends BaseFragment {
         pasteCell.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText4));
         pasteCell.setOnClickListener(v -> {
             if (pasteProxySettings != null) {
-                final ProxySettings.Type pasteType = pasteProxySettings.getType();
-
-                for (int i = 0; i < inputFields.length; i++) {
-                    if (pasteType == ProxySettings.Type.SOCKS5 && i == FIELD_SECRET) {
-                        continue;
-                    }
-                    if (pasteType == ProxySettings.Type.MTPROTO && (i == FIELD_USER || i == FIELD_PASSWORD)) {
-                        continue;
-                    }
-
-                    String field = null;
-                    if (i == FIELD_IP) {
-                        field = pasteProxySettings.getAddress();
-                    } else if (i == FIELD_PORT) {
-                        final int port = pasteProxySettings.getPort();
-                        field = port != 0 ? Integer.toString(port) : null;
-                    } else if (i == FIELD_USER) {
-                        field = pasteProxySettings.getUser();
-                    } else if (i == FIELD_PASSWORD) {
-                        field = pasteProxySettings.getPassword();
-                    } else if (i == FIELD_SECRET) {
-                        field = pasteProxySettings.getSecret();
-                    }
-
-                    if (!TextUtils.isEmpty(field)) {
-                        try {
-                            inputFields[i].setText(URLDecoder.decode(field, "UTF-8"));
-                        } catch (UnsupportedEncodingException e) {
-                            inputFields[i].setText(field);
-                        }
-                    } else {
-                        inputFields[i].setText(null);
-                    }
-                }
-                inputFields[0].setSelection(inputFields[0].length());
-                setProxyType(pasteType, true, () -> {
-                    AndroidUtilities.hideKeyboard(inputFieldsContainer.findFocus());
-                    for (int i = 0; i < inputFields.length; i++) {
-                        if (i == FIELD_IP) {
-                            continue;
-                        }
-                        if (pasteType == ProxySettings.Type.WEB) {
-                            if (i == FIELD_SECRET) {
-                                continue;
-                            }
-                        }
-                        if (pasteType == ProxySettings.Type.MTPROTO) {
-                            if (i == FIELD_SECRET || i == FIELD_PORT) {
-                                continue;
-                            }
-                        }
-                        if (pasteType == ProxySettings.Type.SOCKS5) {
-                            if (i == FIELD_PORT || i == FIELD_USER || i == FIELD_PASSWORD) {
-                                continue;
-                            }
-                        }
-                        inputFields[i].setText(null);
-                    }
-                });
+                applyImportedProxy(pasteProxySettings);
             }
         });
         linearLayout2.addView(pasteCell, 0, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
@@ -710,6 +652,25 @@ public class ProxySettingsActivity extends BaseFragment {
         return fragmentView;
     }
 
+    private void applyImportedProxy(ProxySettings settings) {
+        setProxyType(settings.getType(), false);
+        inputFields[FIELD_IP].setText(settings.getAddress());
+        inputFields[FIELD_USER].setText(settings.getUser());
+        inputFields[FIELD_PASSWORD].setText(settings.getPassword());
+        inputFields[FIELD_SECRET].setText(settings.getSecret());
+        if (settings.getType() == ProxySettings.Type.MIERU) {
+            MieruProxySettings mieru = MieruProxySettings.fromProxySettings(settings);
+            inputFields[FIELD_PORT].setText(mieru.portRange);
+            inputFields[FIELD_MIERU_PROTOCOL].setText(mieru.protocol);
+            inputFields[FIELD_MIERU_MULTIPLEXING].setText(mieru.multiplexing);
+        } else {
+            inputFields[FIELD_PORT].setText(settings.getPort() == 0 ? "" : Integer.toString(settings.getPort()));
+        }
+        inputFields[FIELD_IP].setSelection(inputFields[FIELD_IP].length());
+        AndroidUtilities.hideKeyboard(inputFieldsContainer.findFocus());
+        checkShareDone(true);
+    }
+
     private void updatePasteCell() {
         final ClipData clip = clipboardManager.getPrimaryClip();
 
@@ -733,7 +694,7 @@ public class ProxySettingsActivity extends BaseFragment {
         if (clipText != null) {
             ProxySettings pasteProxySettings = null;
             try {
-                pasteProxySettings = ProxySettings.fromUri(Uri.parse(clipText));
+                pasteProxySettings = ProxySettings.fromText(clipText);
             } catch (Exception ignoreE) {
 
             }

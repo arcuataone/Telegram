@@ -10,11 +10,16 @@ package org.telegram.ui;
 
 import static org.telegram.messenger.LocaleController.getString;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.app.Dialog;
 import android.content.Context;
+import android.content.ClipboardManager;
+import android.content.ClipData;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -98,6 +103,8 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
     @Keep
     private int proxyAddRow;
     private int proxyShadowRow;
+    private int proxyClipboardRow;
+    private int proxyScanRow;
     private int rotationRow;
     private int rotationTimeoutRow;
     private int rotationTimeoutInfoRow;
@@ -470,6 +477,16 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
                     textCheckCell.setChecked(true);
                 }
                 org.telegram.messenger.transport.MieruController.apply(getParentActivity(), useProxySettings, SharedConfig.currentProxy.settings);
+            } else if (position == proxyClipboardRow) {
+                try {
+                    ClipboardManager clipboard = (ClipboardManager) getParentActivity().getSystemService(Context.CLIPBOARD_SERVICE);
+                    ClipData clip = clipboard.getPrimaryClip();
+                    importProxy(clip != null && clip.getItemCount() > 0 ? clip.getItemAt(0).coerceToText(getParentActivity()) : null);
+                } catch (Exception ignored) {
+                    importProxy(null);
+                }
+            } else if (position == proxyScanRow) {
+                openProxyScanner();
             } else if (position == proxyAddRow) {
                 presentFragment(new ProxySettingsActivity());
             } else if (position == deleteAllRow) {
@@ -597,6 +614,53 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
         return super.onBackPressed(invoked);
     }
 
+    private void openProxyScanner() {
+        if (getParentActivity() == null) return;
+        if (getParentActivity().checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            getParentActivity().requestPermissions(new String[]{Manifest.permission.CAMERA}, ActionIntroActivity.CAMERA_PERMISSION_REQUEST_CODE);
+            return;
+        }
+        CameraScanActivity.showAsSheet(this, true, CameraScanActivity.TYPE_QR, new CameraScanActivity.CameraScanActivityDelegate() {
+            @Override
+            public void didFindQr(String text) {
+                AndroidUtilities.runOnUIThread(() -> importProxy(text), 250);
+            }
+        });
+    }
+
+    @Override
+    public void onRequestPermissionsResultFragment(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResultFragment(requestCode, permissions, grantResults);
+        if (requestCode != ActionIntroActivity.CAMERA_PERMISSION_REQUEST_CODE || getParentActivity() == null) return;
+        if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            openProxyScanner();
+        } else {
+            showDialog(new AlertDialog.Builder(getParentActivity())
+                    .setTitle(getString(R.string.ProxySettings))
+                    .setMessage(AndroidUtilities.replaceTags(getString(R.string.QRCodePermissionNoCameraWithHint)))
+                    .setPositiveButton(getString(R.string.PermissionOpenSettings), (dialog, which) -> {
+                        if (getParentActivity() == null) return;
+                        Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                        intent.setData(Uri.parse("package:" + getParentActivity().getPackageName()));
+                        getParentActivity().startActivity(intent);
+                    })
+                    .setNegativeButton(getString(R.string.Cancel), null).create());
+        }
+    }
+
+    private void importProxy(CharSequence text) {
+        if (getParentActivity() == null) return;
+        ProxySettings settings = ProxySettings.fromText(text);
+        if (settings == null) {
+            showDialog(new AlertDialog.Builder(getParentActivity())
+                    .setTitle(getString(R.string.ProxySettings))
+                    .setMessage(getString(R.string.ProxyImportInvalid))
+                    .setPositiveButton(getString(R.string.OK), null).create());
+            return;
+        }
+        AndroidUtilities.showProxyAlert(getParentActivity(), settings);
+    }
+
     private void updateRows(boolean notify) {
         rowCount = 0;
         useProxyRow = rowCount++;
@@ -662,6 +726,8 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
             proxyEndRow = -1;
         }
         proxyAddRow = rowCount++;
+        proxyClipboardRow = rowCount++;
+        proxyScanRow = rowCount++;
         proxyShadowRow = rowCount++;
         if (proxyList.size() >= 10) {
             deleteAllRow = rowCount++;
@@ -850,7 +916,11 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
                     TextSettingsCell textCell = (TextSettingsCell) holder.itemView;
                     textCell.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
                     if (position == proxyAddRow) {
-                        textCell.setText(getString(R.string.AddProxy), deleteAllRow != -1);
+                        textCell.setText(getString(R.string.AddProxy), true);
+                    } else if (position == proxyClipboardRow) {
+                        textCell.setText(getString(R.string.PasteFromClipboard), true);
+                    } else if (position == proxyScanRow) {
+                        textCell.setText(getString(R.string.ScanQrCode), false);
                     } else if (position == deleteAllRow) {
                         textCell.setTextColor(Theme.getColor(Theme.key_text_RedRegular));
                         textCell.setText(getString(R.string.DeleteAllProxies), false);
@@ -948,7 +1018,7 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
         @Override
         public boolean isEnabled(RecyclerView.ViewHolder holder) {
             int position = holder.getAdapterPosition();
-            return position == useProxyRow || position == rotationRow || position == proxyAddRow || position == deleteAllRow || position >= proxyStartRow && position < proxyEndRow;
+            return position == useProxyRow || position == rotationRow || position == proxyAddRow || position == proxyClipboardRow || position == proxyScanRow || position == deleteAllRow || position >= proxyStartRow && position < proxyEndRow;
         }
 
         @Override
@@ -996,6 +1066,10 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
                 return -2;
             } else if (position == proxyAddRow) {
                 return -3;
+            } else if (position == proxyClipboardRow) {
+                return -12;
+            } else if (position == proxyScanRow) {
+                return -13;
             } else if (position == useProxyRow) {
                 return -4;
             } else if (position == connectionsHeaderRow) {
@@ -1019,7 +1093,7 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
         public int getItemViewType(int position) {
             if (position == useProxyShadowRow || position == proxyShadowRow) {
                 return VIEW_TYPE_SHADOW;
-            } else if (position == proxyAddRow || position == deleteAllRow) {
+            } else if (position == proxyAddRow || position == proxyClipboardRow || position == proxyScanRow || position == deleteAllRow) {
                 return VIEW_TYPE_TEXT_SETTING;
             } else if (position == useProxyRow || position == rotationRow) {
                 return VIEW_TYPE_TEXT_CHECK;
