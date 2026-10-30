@@ -962,6 +962,7 @@ JNIEXPORT jlong JNICALL Java_org_telegram_messenger_voip_NativeInstance_makeNati
             rtcServer.login = tgvoip::jni::JavaStringToStdString(env, endpointObject.getStringField("username"));
             rtcServer.password = tgvoip::jni::JavaStringToStdString(env, endpointObject.getStringField("password"));
             rtcServer.isTurn = endpointObject.getBooleanField("turn");
+            rtcServer.isTcp = endpointObject.getBooleanField("tcp");
             pushRtcServerWithIpv6(descriptor.rtcServers, std::move(rtcServer), tgvoip::jni::JavaStringToStdString(env, endpointObject.getStringField("ipv6")));
         } else {
             RtcServer rtcServer;

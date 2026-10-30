@@ -3428,17 +3428,16 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 
 			// endpoints
 			final org.telegram.messenger.transport.ProxyTransport activeTransport = org.telegram.messenger.transport.TransportManager.getInstance().getActiveTransport();
-			final boolean useMieruForCalls = preferences.getBoolean("proxy_enabled_calls", false)
-					&& org.telegram.messenger.transport.MieruController.isEnabled()
+			final boolean useMieruForCalls = org.telegram.messenger.transport.MieruController.isEnabled()
 					&& activeTransport instanceof org.telegram.messenger.transport.MieruTransport
 					&& activeTransport.isRunning();
-			final boolean forceTcp = useMieruForCalls || preferences.getBoolean("dbg_force_tcp_in_calls", false);
+			final boolean forceTcp = preferences.getBoolean("dbg_force_tcp_in_calls", false);
 			final int endpointType = forceTcp ? Instance.ENDPOINT_TYPE_TCP_RELAY : Instance.ENDPOINT_TYPE_UDP_RELAY;
 			final Instance.Endpoint[] endpoints = new Instance.Endpoint[privateCall.connections.size()];
 			ArrayList<Long> reflectorIds = new ArrayList<>();
 			for (int i = 0; i < endpoints.length; i++) {
 				final TLRPC.PhoneConnection connection = privateCall.connections.get(i);
-				endpoints[i] = new Instance.Endpoint(connection instanceof TLRPC.TL_phoneConnectionWebrtc, connection.id, connection.ip, connection.ipv6, connection.port, endpointType, connection.peer_tag, connection.turn, connection.stun, connection.username, connection.password, connection.tcp);
+				endpoints[i] = new Instance.Endpoint(connection instanceof TLRPC.TL_phoneConnectionWebrtc, connection.id, connection.ip, connection.ipv6, connection.port, endpointType, connection.peer_tag, connection.turn, connection.stun, connection.username, connection.password, connection.tcp || (forceTcp && connection instanceof TLRPC.TL_phoneConnection));
 				if (connection instanceof TLRPC.TL_phoneConnection) {
 					reflectorIds.add(((TLRPC.TL_phoneConnection) connection).id);
 				}
