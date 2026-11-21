@@ -14,6 +14,12 @@ public class QiQiGramReleaseTest {
   ok(QiQiGramRelease.versionNumber("v0.03")==3);
   ok(QiQiGramRelease.versionNumber("0.10")>QiQiGramRelease.versionNumber("0.09"));
   ok(QiQiGramRelease.versionNumber("1.00")==100);
+  JSONObject stable = release("v1.00", false, "arm64-v8a", true).put("prerelease", false);
+  QiQiGramRelease firstStable = QiQiGramRelease.latest(new JSONArray()
+      .put(release("v0.05", false, "arm64-v8a", true)).put(stable));
+  ok(firstStable.number == 100);
+  ok(firstStable.version.equals("1.0.0"));
+  ok(firstStable.apkUrl.endsWith("/v1.00/qiqigram-1.00-beta-arm64-v8a.apk"));
   for(String bad:new String[]{"v0.3","../0.03","v999999999999999999999.00","junk"})ok(QiQiGramRelease.versionNumber(bad)==-1);
   JSONArray releases=new JSONArray().put(release("v0.10",false,"arm64-v8a",true)).put(release("v0.09",false,"arm64-v8a",true))
    .put(release("v0.99",true,"arm64-v8a",true)).put(release("v0.98",false,"x86",true)).put(release("v0.97",false,"arm64-v8a",false));

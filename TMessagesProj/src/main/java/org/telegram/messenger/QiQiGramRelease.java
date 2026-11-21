@@ -24,6 +24,11 @@ public final class QiQiGramRelease {
             return number <= Integer.MAX_VALUE ? (int) number : -1;
         } catch (NumberFormatException e) { return -1; }
     }
+    // The first stable release retains a tag that the 0.05 updater can read.
+    public static String displayVersion(String version) {
+        return "1.00".equals(version) ? "1.0.0" : version;
+    }
+
     public static boolean assetUrl(String url, String tag) {
         try {
             URI u = new URI(url);
@@ -58,7 +63,7 @@ public final class QiQiGramRelease {
             if (hash.isEmpty() && checksum.isEmpty()) continue;
             String notes = r.optString("body", "");
             if (notes.length() > 5000) notes = notes.substring(0, 5000) + "…";
-            latest = new QiQiGramRelease(number, version, notes, apk.optString("browser_download_url"), checksum, hash, size);
+            latest = new QiQiGramRelease(number, displayVersion(version), notes, apk.optString("browser_download_url"), checksum, hash, size);
         }
         return latest;
     }

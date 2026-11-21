@@ -1079,7 +1079,8 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                     break;
             }
             int buildNumber = org.telegram.messenger.BuildConfig.QIQIGRAM_BUILD_NUMBER;
-            String forkVersion = String.format(Locale.US, "%d.%02d", buildNumber / 100, buildNumber % 100);
+            String forkVersion = org.telegram.messenger.QiQiGramRelease.displayVersion(
+                    String.format(Locale.US, "%d.%02d", buildNumber / 100, buildNumber % 100));
             return "QiQiGram " + forkVersion + "\n" + formatString(R.string.TelegramVersion, String.format(Locale.US, "v%s (%d)\n%s", pInfo.versionName, code, abi));
         } catch (Exception e) {
             FileLog.e(e);
