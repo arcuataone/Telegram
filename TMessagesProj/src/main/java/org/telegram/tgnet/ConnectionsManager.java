@@ -46,6 +46,7 @@ import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.StatsController;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
+import org.telegram.messenger.transport.MieruController;
 import org.telegram.messenger.transport.MieruTransport;
 import org.telegram.utils.proxy.WebProxyConnectionTester;
 import org.telegram.utils.proxy.WebProxyTransport;
@@ -674,7 +675,9 @@ public class ConnectionsManager extends BaseController {
         final SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);
         final ProxySettings proxySettings = ProxySettings.fromSharedPreferences(preferences);
         if (preferences.getBoolean("proxy_enabled", false) && proxySettings.isValid()) {
-            if (proxySettings.getType() == ProxySettings.Type.WEB) {
+            if (proxySettings.getType() == ProxySettings.Type.MIERU) {
+                initMieruProxy(proxySettings);
+            } else if (proxySettings.getType() == ProxySettings.Type.WEB) {
                 int localPort = WebProxyTransport.start(proxySettings.getAddress(), proxySettings.getSecret());
                 native_setProxySettings(currentAccount, "127.0.0.1", localPort != 0 ? localPort : 9, "", "",
                         proxySettings.getSecret());
@@ -715,6 +718,20 @@ public class ConnectionsManager extends BaseController {
 
         native_init(currentAccount, version, layer, apiId, deviceModel, systemVersion, appVersion, langCode, systemLangCode, configPath, logPath, regId, cFingerprint, installer, packageId, timezoneOffset, userId, userPremium, enablePushConnection, ApplicationLoader.isNetworkOnline(), ApplicationLoader.getCurrentNetworkType(), SharedConfig.measureDevicePerformanceClass());
         checkConnection();
+    }
+
+    private void initMieruProxy(ProxySettings settings) {
+        ProxySettings local = MieruController.getRunningLocalProxy(settings);
+        if (local == null) {
+            // Keep the connection on loopback until the Mieru client is ready.
+            native_setProxySettings(currentAccount, "127.0.0.1", 9, "", "", "");
+            // Startup may have published the ready SOCKS proxy while we set the placeholder.
+            local = MieruController.getRunningLocalProxy(settings);
+        }
+        if (local != null) {
+            native_setProxySettings(currentAccount, local.getAddress(), local.getPort(),
+                    local.getUser(), local.getPassword(), "");
+        }
     }
 
     public static void setLangCode(String langCode) {

@@ -29,6 +29,20 @@ public class MieruController {
                 && isMieru(SharedConfig.currentProxy.settings);
     }
 
+    public static ProxySettings getRunningLocalProxy(ProxySettings settings) {
+        ProxyTransport current = TransportManager.getInstance().getActiveTransport();
+        if (current instanceof MieruTransport && current.isRunning()) {
+            MieruTransport transport = (MieruTransport) current;
+            if (settings.equals(transport.getProxySettings())) {
+                ProxySettings local = transport.getLocalProxySettings();
+                if (local.isValid()) {
+                    return local;
+                }
+            }
+        }
+        return null;
+    }
+
     public static void migrateLegacyProfile(Context context) {
         SharedPreferences preferences = MessagesController.getGlobalMainSettings();
         // loadConfig() does not restore the selected proxy. This method is also
