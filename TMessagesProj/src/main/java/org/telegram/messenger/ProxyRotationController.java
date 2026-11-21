@@ -5,6 +5,7 @@ import android.os.SystemClock;
 
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.messenger.transport.MieruController;
+import org.telegram.utils.proxy.ProxySettings;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,7 +36,11 @@ public class ProxyRotationController implements NotificationCenter.NotificationC
             }
             startedCheck = true;
             proxyInfo.checking = true;
-            ConnectionsManager.getInstance(currentAccount).checkProxy(proxyInfo.settings, time -> AndroidUtilities.runOnUIThread(() -> {
+            ProxySettings settings = proxyInfo.settings;
+            ConnectionsManager.getInstance(currentAccount).checkProxy(settings, time -> AndroidUtilities.runOnUIThread(() -> {
+                if (proxyInfo.settings != settings) {
+                    return;
+                }
                 proxyInfo.availableCheckTime = SystemClock.elapsedRealtime();
                 proxyInfo.checking = false;
                 if (time == -1) {
@@ -99,6 +104,9 @@ public class ProxyRotationController implements NotificationCenter.NotificationC
     @Override
     public void didReceivedNotification(int id, int account, Object... args) {
         if (id == NotificationCenter.proxyCheckDone) {
+            if (MieruController.isMieru(((SharedConfig.ProxyInfo) args[0]).settings)) {
+                return;
+            }
             if (!SharedConfig.isProxyEnabled() || !SharedConfig.proxyRotationEnabled || SharedConfig.proxyList.size() <= 1 || !isCurrentlyChecking) {
                 return;
             }

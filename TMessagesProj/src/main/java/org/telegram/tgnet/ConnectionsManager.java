@@ -46,6 +46,7 @@ import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.StatsController;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
+import org.telegram.messenger.transport.MieruTransport;
 import org.telegram.utils.proxy.WebProxyConnectionTester;
 import org.telegram.utils.proxy.WebProxyTransport;
 import org.telegram.utils.proxy.ProxySettings;
@@ -774,6 +775,14 @@ public class ConnectionsManager extends BaseController {
     }
 
     public long checkProxy(ProxySettings settings, RequestTimeDelegate requestTimeDelegate) {
+        if (settings != null && settings.getType() == ProxySettings.Type.MIERU) {
+            if (settings.isValid()) {
+                MieruTransport.checkProxy(ApplicationLoader.applicationContext, settings, this, requestTimeDelegate);
+            } else {
+                requestTimeDelegate.run(-1);
+            }
+            return 0;
+        }
         if (settings == null || !settings.isValid()) {
             return 0;
         }

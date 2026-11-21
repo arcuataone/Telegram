@@ -128,14 +128,7 @@ public class MieruController {
     }
 
     private static void applyMieruProxy(MieruTransport transport) {
-        ProxySettings localSocks = ProxySettings.builder()
-                .setType(ProxySettings.Type.SOCKS5)
-                .setAddress(transport.getLocalAddress())
-                .setPort(transport.getLocalPort())
-                .setUser(transport.getSocksUsername())
-                .setPassword(transport.getSocksPassword())
-                .build();
-        ConnectionsManager.setProxySettings(true, localSocks);
+        ConnectionsManager.setProxySettings(true, transport.getLocalProxySettings());
         AndroidUtilities.runOnUIThread(() -> {
             for (int account = 0; account < UserConfig.MAX_ACCOUNT_COUNT; account++) {
                 if (UserConfig.getInstance(account).isClientActivated()) {

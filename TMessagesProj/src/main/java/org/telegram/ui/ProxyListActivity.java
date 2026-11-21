@@ -222,7 +222,8 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
                     } else {
                         valueTextView.setText(getString(R.string.Connected));
                     }
-                    if (!currentInfo.checking && !currentInfo.available) {
+                    if (!currentInfo.checking && !currentInfo.available
+                            && currentInfo.settings.getType() != ProxySettings.Type.MIERU) {
                         currentInfo.availableCheckTime = 0;
                     }
                 } else {
@@ -761,16 +762,16 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
     private void checkProxyList() {
         for (int a = 0, count = proxyList.size(); a < count; a++) {
             final SharedConfig.ProxyInfo proxyInfo = proxyList.get(a);
-            if (proxyInfo.settings.getType() == ProxySettings.Type.MIERU) {
-                proxyInfo.checking = false;
-                proxyInfo.available = true;
+            long checkAge = SystemClock.elapsedRealtime() - proxyInfo.availableCheckTime;
+            if (proxyInfo.checking || (proxyInfo.availableCheckTime != 0 && checkAge >= 0 && checkAge < 2 * 60 * 1000)) {
                 continue;
             }
-            if (proxyInfo.checking || SystemClock.elapsedRealtime() - proxyInfo.availableCheckTime < 2 * 60 * 1000) {
-                continue;
-            }
+            ProxySettings settings = proxyInfo.settings;
             proxyInfo.checking = true;
-            ConnectionsManager.getInstance(currentAccount).checkProxy(proxyInfo.settings, time -> AndroidUtilities.runOnUIThread(() -> {
+            ConnectionsManager.getInstance(currentAccount).checkProxy(settings, time -> AndroidUtilities.runOnUIThread(() -> {
+                if (proxyInfo.settings != settings) {
+                    return;
+                }
                 proxyInfo.availableCheckTime = SystemClock.elapsedRealtime();
                 proxyInfo.checking = false;
                 if (time == -1) {
@@ -793,6 +794,7 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
     @Override
     public void onResume() {
         super.onResume();
+        checkProxyList();
         if (listAdapter != null) {
             listAdapter.notifyDataSetChanged();
         }

@@ -235,7 +235,7 @@ public class ProxySettingsActivity extends BaseFragment {
                                     inputFields[FIELD_MIERU_PROTOCOL].getText().toString(),
                                     inputFields[FIELD_MIERU_MULTIPLEXING].getText().toString())
                             : null;
-                    currentProxyInfo.settings = ProxySettings.builder()
+                    ProxySettings updatedSettings = ProxySettings.builder()
                         .setType(currentType)
                         .setAddress(address)
                         .setPort(currentType == ProxySettings.Type.WEB ? 0 : currentType == ProxySettings.Type.MIERU ? mieruSettings.getStartPort() : Utilities.parseInt(portText))
@@ -243,6 +243,14 @@ public class ProxySettingsActivity extends BaseFragment {
                         .setPassword(currentType == ProxySettings.Type.SOCKS5 || currentType == ProxySettings.Type.MIERU ? inputFields[FIELD_PASSWORD].getText().toString() : "")
                         .setSecret(currentType == ProxySettings.Type.MIERU ? mieruSettings.toSecret() : currentType != ProxySettings.Type.SOCKS5 ? inputFields[FIELD_SECRET].getText().toString() : "")
                         .build();
+
+                    if (!updatedSettings.equals(currentProxyInfo.settings)) {
+                        currentProxyInfo.settings = updatedSettings;
+                        currentProxyInfo.checking = false;
+                        currentProxyInfo.available = false;
+                        currentProxyInfo.ping = 0;
+                        currentProxyInfo.availableCheckTime = 0;
+                    }
 
                     SharedPreferences preferences = MessagesController.getGlobalMainSettings();
                     SharedPreferences.Editor editor = preferences.edit();

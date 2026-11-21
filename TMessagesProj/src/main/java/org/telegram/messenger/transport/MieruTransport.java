@@ -1,9 +1,11 @@
 package org.telegram.messenger.transport;
 
 import android.content.Context;
-import java.net.InetAddress;
-import java.net.ServerSocket;
+import android.os.SystemClock;
+
 import org.telegram.messenger.FileLog;
+import org.telegram.tgnet.ConnectionsManager;
+import org.telegram.tgnet.RequestTimeDelegate;
 import org.telegram.utils.proxy.MieruProxySettings;
 import org.telegram.utils.proxy.ProxySettings;
 import org.json.JSONArray;
@@ -13,15 +15,26 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 
 public class MieruTransport implements ProxyTransport {
 
     private static final String LOCAL_ADDRESS = "127.0.0.1";
+    private static final long START_TIMEOUT_MS = 10_000;
+    private static final long PING_TIMEOUT_MS = 20_000;
+    private static final ExecutorService proxyChecks = Executors.newSingleThreadExecutor(
+            task -> new Thread(task, "MieruProxyCheck"));
     private volatile int localPort;
     private volatile int rpcPort;
     private static final String SOCKS_USERNAME = "qiqigram";
@@ -78,50 +91,15 @@ public class MieruTransport implements ProxyTransport {
 
         workerThread = new Thread(() -> {
             try {
-                File binary = MieruBinary.getExecutable(context);
-                allocatePorts();
-                socksPassword = UUID.randomUUID().toString().replace("-", "");
+                File dir = new File(context.getFilesDir(), "transport");
+                if (!dir.isDirectory() && !dir.mkdirs()) {
+                    throw new IllegalStateException("Can't create transport directory");
+                }
 
-                File config = writeConfig();
+                Process client = startClient(new File(dir, "mieru.json"), true);
+                process = client;
 
-                FileLog.d("Mieru binary: " + binary.getAbsolutePath());
-                FileLog.d("Mieru config: " + config.getAbsolutePath());
-
-                ProcessBuilder pb = new ProcessBuilder(
-                        binary.getAbsolutePath(),
-                        "run"
-                );
-
-                pb.environment().put(
-                        "MIERU_CONFIG_JSON_FILE",
-                        config.getAbsolutePath()
-                );
-
-                pb.redirectErrorStream(true);
-
-                process = pb.start();
-
-                // Читаем stdout/stderr Mieru в отдельном потоке.
-                Thread logThread = new Thread(() -> {
-                    try {
-                        BufferedReader reader = new BufferedReader(
-                                new InputStreamReader(process.getInputStream())
-                        );
-
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            FileLog.d("Mieru: " + line);
-                        }
-                    } catch (Exception e) {
-                        if (state != TransportState.STOPPED) {
-                            FileLog.e(e);
-                        }
-                    }
-                }, "MieruLog");
-
-                logThread.start();
-
-                if (!waitForSocks(10000)) {
+                if (!waitForSocks(client)) {
                     throw new IllegalStateException(
                             "Mieru SOCKS5 listener did not start"
                     );
@@ -136,7 +114,7 @@ public class MieruTransport implements ProxyTransport {
                                 + localPort
                 );
 
-                int exitCode = process.waitFor();
+                int exitCode = client.waitFor();
 
                 if (state != TransportState.STOPPED) {
                     lastError = "Mieru exited with code " + exitCode;
@@ -156,17 +134,35 @@ public class MieruTransport implements ProxyTransport {
         workerThread.start();
     }
 
-    private File writeConfig() throws Exception {
-        File dir = new File(context.getFilesDir(), "transport");
+    private Process startClient(File config, boolean logOutput) throws Exception {
+        allocatePorts();
+        socksPassword = UUID.randomUUID().toString().replace("-", "");
+        writeConfig(config);
 
-        if (!dir.exists() && !dir.mkdirs()) {
-            throw new IllegalStateException(
-                    "Can't create transport directory"
-            );
-        }
+        File binary = MieruBinary.getExecutable(context);
+        ProcessBuilder builder = new ProcessBuilder(binary.getAbsolutePath(), "run");
+        builder.environment().put("MIERU_CONFIG_JSON_FILE", config.getAbsolutePath());
+        builder.redirectErrorStream(true);
+        Process client = builder.start();
 
-        File config = new File(dir, "mieru.json");
+        new Thread(() -> {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(client.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (logOutput) {
+                        FileLog.d("Mieru: " + line);
+                    }
+                }
+            } catch (Exception e) {
+                if (logOutput && state != TransportState.STOPPED) {
+                    FileLog.e(e);
+                }
+            }
+        }, "MieruLog").start();
+        return client;
+    }
 
+    private void writeConfig(File config) throws Exception {
         MieruProxySettings profileSettings = MieruProxySettings.fromProxySettings(proxySettings);
         JSONObject profile = new JSONObject();
         profile.put("profileName", "telegram");
@@ -197,15 +193,17 @@ public class MieruTransport implements ProxyTransport {
             out.write(json.getBytes(StandardCharsets.UTF_8));
         }
 
-        return config;
     }
 
-    private boolean waitForSocks(long timeoutMs) {
-        long deadline = System.currentTimeMillis() + timeoutMs;
+    private boolean waitForSocks(Process client) {
+        long deadline = SystemClock.elapsedRealtime() + START_TIMEOUT_MS;
 
-        while (System.currentTimeMillis() < deadline) {
-            if (process == null || !process.isAlive()) {
+        while (SystemClock.elapsedRealtime() < deadline) {
+            try {
+                client.exitValue();
                 return false;
+            } catch (IllegalThreadStateException ignored) {
+                // The client is still running.
             }
 
             try (Socket socket = new Socket()) {
@@ -230,6 +228,65 @@ public class MieruTransport implements ProxyTransport {
         }
 
         return false;
+    }
+
+    public static void checkProxy(Context context, ProxySettings settings, ConnectionsManager connections,
+                                  RequestTimeDelegate delegate) {
+        proxyChecks.execute(() -> {
+            long ping = -1;
+            try {
+                ProxyTransport active = TransportManager.getInstance().getActiveTransport();
+                if (active instanceof MieruTransport && active.isRunning()
+                        && settings.equals(((MieruTransport) active).getProxySettings())) {
+                    ping = ((MieruTransport) active).measurePing(connections);
+                } else {
+                    ping = new MieruTransport(context, settings).measurePingWithTemporaryClient(connections);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (Exception ignored) {
+                // A failed probe should not change the active proxy.
+            }
+            delegate.run(ping);
+        });
+    }
+
+    private long measurePingWithTemporaryClient(ConnectionsManager connections) throws Exception {
+        File config = File.createTempFile("mieru-probe-", ".json", context.getCacheDir());
+        Process client = null;
+        try {
+            client = startClient(config, false);
+            return waitForSocks(client) ? measurePing(connections) : -1;
+        } finally {
+            if (client != null) {
+                client.destroy();
+            }
+            config.delete();
+        }
+    }
+
+    private long measurePing(ConnectionsManager connections) throws InterruptedException {
+        ProxySettings socks = getLocalProxySettings();
+        if (!socks.isValid()) {
+            return -1;
+        }
+        CountDownLatch done = new CountDownLatch(1);
+        AtomicLong ping = new AtomicLong(-1);
+        connections.checkProxy(socks, time -> {
+            ping.set(time < 0 ? -1 : Math.max(1, time));
+            done.countDown();
+        });
+        return done.await(PING_TIMEOUT_MS, TimeUnit.MILLISECONDS) ? ping.get() : -1;
+    }
+
+    ProxySettings getLocalProxySettings() {
+        return ProxySettings.builder()
+                .setType(ProxySettings.Type.SOCKS5)
+                .setAddress(getLocalAddress())
+                .setPort(getLocalPort())
+                .setUser(getSocksUsername())
+                .setPassword(getSocksPassword())
+                .build();
     }
 
     @Override

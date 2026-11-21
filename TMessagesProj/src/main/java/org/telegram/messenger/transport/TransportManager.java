@@ -4,7 +4,7 @@ public class TransportManager {
 
     private static volatile TransportManager instance;
 
-    private ProxyTransport activeTransport;
+    private volatile ProxyTransport activeTransport;
 
     private TransportManager() {
     }
