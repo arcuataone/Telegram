@@ -7026,6 +7026,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     @Override
     public void onResume() {
         super.onResume();
+        if (!onlySelect && initialDialogsType == DIALOGS_TYPE_DEFAULT && folderId == 0) org.telegram.messenger.QiQiGramUpdater.onResume(this);
         if (dialogStoriesCell != null) {
             dialogStoriesCell.onResume();
         }

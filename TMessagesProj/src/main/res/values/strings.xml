@@ -11637,4 +11637,18 @@
     <string name="MieruProxyInfo">Mieru proxy connection settings.</string>
     <string name="HideStories">Hide Stories</string>
     <string name="ProxyImportInvalid">No valid proxy link found. Copy a Mieru or Telegram proxy link, or scan its QR code.</string>
+    <string name="QiqigramUpdates">QiQiGram updates</string>
+    <string name="QiqigramUpdateCheck">Check for updates</string>
+    <string name="QiqigramUpdateAuto">Check automatically once a day</string>
+    <string name="QiqigramUpdateChecking">An update check is already running.</string>
+    <string name="QiqigramUpdateCurrent">You have the latest available QiQiGram version.</string>
+    <string name="QiqigramUpdateCheckFailed">Could not check GitHub for updates. Check your connection and try again.</string>
+    <string name="QiqigramUpdateAvailable">QiQiGram %1$s is available.</string>
+    <string name="QiqigramUpdateInstall">Update</string>
+    <string name="QiqigramUpdateDownload">Download APK</string>
+    <string name="QiqigramUpdateLater">Later</string>
+    <string name="QiqigramUpdateDownloading">Downloading update</string>
+    <string name="QiqigramUpdateDownloadFailed">Could not download or verify the update. Try again or download the APK manually from GitHub.</string>
+    <string name="QiqigramUpdatePermission">Allow QiQiGram to install apps in Android settings. Return here to continue installing the verified update.</string>
+    <string name="QiqigramUpdateInstallFailed">Could not open the installer. You can download the APK from GitHub and install it manually.</string>
 </resources>

@@ -640,6 +640,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
     @Override
     public void onResume() {
         super.onResume();
+        org.telegram.messenger.QiQiGramUpdater.onResume(this);
         if (listView.adapter != null) {
             listView.adapter.notifyDataSetChanged();
         }
@@ -789,6 +790,9 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             items.add(SettingCell.Factory.of(22, 0xFFF45255, 0xFFDF3955, 0, getString(R.string.DebugClearLogs)));
         }
 
+        items.add(UItem.asHeader(getString(R.string.QiqigramUpdates)));
+        items.add(SettingCell.Factory.of(1001, 0xFF1BA4ED, 0xFF1488E1, R.drawable.msg_download, getString(R.string.QiqigramUpdateCheck)));
+        items.add(UItem.asCheck(1002, getString(R.string.QiqigramUpdateAuto)).setChecked(org.telegram.messenger.QiQiGramUpdater.autoEnabled()));
         items.add(UItem.asCustomShadow(versionView));
         items.add(UItem.asCustomShadow(githubView));
     }
@@ -849,6 +853,13 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             return;
         }
         switch (item.id) {
+            case 1001:
+                org.telegram.messenger.QiQiGramUpdater.check(this, true);
+                break;
+            case 1002:
+                org.telegram.messenger.QiQiGramUpdater.toggleAuto();
+                listView.adapter.update(true);
+                break;
             case 1:
                 presentSettingFragment(new UserInfoActivity());
                 break;

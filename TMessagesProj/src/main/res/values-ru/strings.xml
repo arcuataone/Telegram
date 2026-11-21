@@ -270,4 +270,18 @@
     <string name="MieruProxyInfo">Параметры подключения к прокси Mieru.</string>
     <string name="HideStories">Скрывать истории</string>
     <string name="ProxyImportInvalid">Ссылка на прокси не найдена. Скопируйте ссылку Mieru или Telegram либо отсканируйте её QR-код.</string>
+    <string name="QiqigramUpdates">Обновления QiQiGram</string>
+    <string name="QiqigramUpdateCheck">Проверить обновления</string>
+    <string name="QiqigramUpdateAuto">Проверять автоматически раз в сутки</string>
+    <string name="QiqigramUpdateChecking">Проверка обновлений уже выполняется.</string>
+    <string name="QiqigramUpdateCurrent">У вас последняя доступная версия QiQiGram.</string>
+    <string name="QiqigramUpdateCheckFailed">Не удалось проверить обновления на GitHub. Проверьте соединение и повторите попытку.</string>
+    <string name="QiqigramUpdateAvailable">Доступна версия QiQiGram %1$s.</string>
+    <string name="QiqigramUpdateInstall">Обновить</string>
+    <string name="QiqigramUpdateDownload">Скачать APK</string>
+    <string name="QiqigramUpdateLater">Позже</string>
+    <string name="QiqigramUpdateDownloading">Загрузка обновления</string>
+    <string name="QiqigramUpdateDownloadFailed">Не удалось скачать или проверить обновление. Повторите попытку или скачайте APK вручную с GitHub.</string>
+    <string name="QiqigramUpdatePermission">Разрешите QiQiGram устанавливать приложения в настройках Android. Затем вернитесь сюда — установка проверенного обновления продолжится.</string>
+    <string name="QiqigramUpdateInstallFailed">Не удалось открыть установщик. Можно скачать APK с GitHub и установить вручную.</string>
 </resources>
